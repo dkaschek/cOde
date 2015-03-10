@@ -1,7 +1,7 @@
 Package: cOde
 Type: Package
 Title: Automated C Code Generation for Use with the "deSolve" and "bvpSolve"" Packages
-Version: 0.1
+Version: 0.2
 Depends: R (>= 3.0)
 Suggests: deSolve, bvpSolve
 Date: 2015-03-05

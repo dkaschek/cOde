@@ -12,7 +12,7 @@ Generates all necessary C functions allowing the user to work with the compiled-
 \tabular{ll}{
 Package: \tab cOde\cr
 Type: \tab Package\cr
-Version: \tab 0.1\cr
+Version: \tab 0.2\cr
 Date: \tab 2015-03-05\cr
 License: \tab GNU Public License 2 or above\cr
 }
