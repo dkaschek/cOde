@@ -1,0 +1,11 @@
+Package: cOde
+Type: Package
+Title: Automated C Code Generation for Use with the "deSolve" and "bvpSolve"" Packages
+Version: 0.1
+Depends: R (>= 3.0)
+Suggests: deSolve, bvpSolve
+Date: 2015-03-05
+Author: Daniel Kaschek
+Maintainer: Daniel Kaschek <daniel.kaschek@physik.uni-freiburg.de>
+Description: Generates all necessary C functions allowing the user to work with the compiled-code interface of ode() and bvptwp(). The implementation supports "forcings" and "events". The package also provides functions to symbolically compute Jacobians, sensitivity equations and adjoint sensitivities being the basis for sensitivity analysis. 
+License: GPL (>= 2)

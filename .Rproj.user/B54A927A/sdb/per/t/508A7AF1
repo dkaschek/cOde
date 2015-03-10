@@ -1,0 +1,16 @@
+{
+    "contents" : "\\name{cOde-package}\n\\alias{cOde-package}\n\\alias{cOde}\n\\docType{package}\n\\title{\nAutomated C Code Generation for Use with the \"deSolve\" and \"bvpSolve\" Packages\n}\n\\description{\nGenerates all necessary C functions allowing the user to work with the compiled-code interface of ode() and bvptwp(). The implementation supports \"forcings\" and \"events\". The package also provides functions to symbolically compute Jacobians, sensitivity equations and adjoint sensitivities being the basis for sensitivity analysis. \n}\n\\details{\n\\tabular{ll}{\nPackage: \\tab cOde\\cr\nType: \\tab Package\\cr\nVersion: \\tab 0.1\\cr\nDate: \\tab 2015-03-05\\cr\nLicense: \\tab GNU Public License 2 or above\\cr\n}\n\nThe system of ordinary differential equations is defined as a named character vector. This character vector is translated in C syntax and the code output format is matched to the requirements of deSolve and bvpSolve.\n\n}\n\\author{\nDaniel Kaschek <daniel.kaschek@physik.uni-freiburg.de>\n}\n\n\\keyword{ package }\n",
+    "created" : 1425901720809.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1883529418",
+    "id" : "508A7AF1",
+    "lastKnownWriteTime" : 1425901748,
+    "path" : "~/cOde/man/cOde-package.Rd",
+    "project_path" : "man/cOde-package.Rd",
+    "properties" : {
+    },
+    "source_on_save" : false,
+    "type" : "r_doc"
+}
