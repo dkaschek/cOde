@@ -33,11 +33,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     pars <- parameters[!parameters%in%inputs]
   }
   
-  
-  
-  Dyf <- jacobianSymb(f, states)
+  Dyf <- jacobianSymb(f, variables)
   Dpf <- jacobianSymb(f, pars)
-  
   
   df <- length(f)
   dv <- length(variables)
@@ -45,19 +42,17 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   dp <- length(pars)
   
   # generate sensitivity variable names and names with zero entries
-  mygridY0 <- expand.grid.alt(states, states)
-  mygridP <- expand.grid.alt(states, pars)
-  sensParVariablesY0 <- apply(mygridY0, 1, paste, collapse=".")
-  sensParVariablesP <- apply(mygridP, 1, paste, collapse=".")
-    
+  mygridY0 <- expand.grid.alt(variables, states)
+  mygridP <- expand.grid.alt(variables, pars)
+  sensParVariablesY0 <- apply(mygridY0, 1, paste, collapse = ".")
+  sensParVariablesP <- apply(mygridP, 1, paste, collapse = ".")
+  
   # Write sensitivity equations in matrix form
-  Dy0y <- matrix(sensParVariablesY0, ncol=ds, nrow=ds)
-  Dpy <- matrix(sensParVariablesP, ncol=dp, nrow=ds)
-
-  gl <- c(as.vector(prodSymb(matrix(Dyf, ncol=ds), Dy0y)),
-          as.vector(sumSymb(prodSymb(matrix(Dyf,ncol=ds), Dpy), matrix(Dpf, nrow=dv))))
-  
-  
+  Dy0y <- matrix(sensParVariablesY0, ncol = ds, nrow = dv)
+  Dpy <- matrix(sensParVariablesP, ncol = dp, nrow = dv)
+  gl <- c(as.vector(prodSymb(matrix(Dyf, ncol = dv), Dy0y)), 
+          as.vector(sumSymb(prodSymb(matrix(Dyf, ncol = dv), Dpy), matrix(Dpf, nrow = dv))))
+ 
   newfun <- gl
   newvariables.grid <- expand.grid.alt(variables, c(states, pars))
   newvariables <- apply(newvariables.grid, 1, paste, collapse=".")
