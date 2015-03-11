@@ -24,49 +24,51 @@
 #' @export
 sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL) {
   
-  variables0 <- variables <- names(f)
-  parameters0 <- parameters
-  symbols <- getSymbols(f)
-  if(is.null(parameters)) parameters0 <- pars <- symbols[!symbols%in%c(variables, inputs)]
+  variables <- names(f)
     
+  if(is.null(parameters)) {
+    pars <- getSymbols(f, exclude=c(variables, inputs, "time"))
+  } else {
+    pars <- parameters
+  }
   
-  fun <- f
-  Dyf <- jacobianSymb(f)
+  
+  Dyf <- jacobianSymb(f, states)
   Dpf <- jacobianSymb(f, pars)
   
   
-  f <- lapply(fun, function(felement) parse(text=felement))
-  
   df <- length(f)
   dv <- length(variables)
+  ds <- length(states)
   dp <- length(pars)
   
-  # generate sensitivity variable names
-  mygridY0 <- expand.grid(variables, variables)
-  mygridP <- expand.grid(variables, pars)
+  # generate sensitivity variable names and names with zero entries
+  mygridY0 <- expand.grid.alt(states, states)
+  mygridP <- expand.grid.alt(states, pars)
   sensParVariablesY0 <- apply(mygridY0, 1, paste, collapse=".")
   sensParVariablesP <- apply(mygridP, 1, paste, collapse=".")
-  
+    
   # Write sensitivity equations in matrix form
-  Dy0y <- matrix(sensParVariablesY0, ncol=dv, nrow=dv)
-  Dpy <- matrix(sensParVariablesP, ncol=dp, nrow=dv)
-  gl <- c(as.vector(prodSymb(matrix(Dyf, ncol=dv), Dy0y)),
-          as.vector(sumSymb(prodSymb(matrix(Dyf,ncol=dv), Dpy), matrix(Dpf, nrow=dv))))
+  Dy0y <- matrix(sensParVariablesY0, ncol=ds, nrow=ds)
+  Dpy <- matrix(sensParVariablesP, ncol=dp, nrow=ds)
+
+  gl <- c(as.vector(prodSymb(matrix(Dyf, ncol=ds), Dy0y)),
+          as.vector(sumSymb(prodSymb(matrix(Dyf,ncol=ds), Dpy), matrix(Dpf, nrow=dv))))
   
   
   newfun <- gl
-  newvariables <- c(sensParVariablesY0, sensParVariablesP)
-  
+  newvariables.grid <- expand.grid.alt(variables, c(states, pars))
+  newvariables <- apply(newvariables.grid, 1, paste, collapse=".")
   names(newfun) <- newvariables
-  
+    
   # Append initial values
   initials <- rep(0, length(newfun))
   names(initials) <- newvariables
-  ones <- which(apply(mygridY0, 1, function(row) row[1] == row[2]))
+  ones <- which(apply(newvariables.grid, 1, function(row) row[1] == row[2]))
   initials[newvariables[ones]] <- 1
   
   # Compute wrss
-  if(is.null(parameters)) pars <- getSymbols(c(f, names(f)), exclude=inputs)
+  pars <- c(pars, states)
   
   statesD <- paste0(states, "D")
   weightsD <- paste0("weight", statesD)
