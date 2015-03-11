@@ -259,6 +259,7 @@ getSymbols <- function(char, exclude = NULL) {
 #' @param M matrix of type character
 #' @param N matrix of type character
 #' @return Matrix of type character, the matrix product of M and N
+#' @export
 prodSymb <- function(M, N) {
   
   red <- sapply(list(M, N), is.null)
@@ -305,6 +306,7 @@ prodSymb <- function(M, N) {
 #' @param M matrix of type character
 #' @param N matrix of type character
 #' @return Matrix of type character, the matrix sum of M and N
+#' @export
 sumSymb <- function(M, N) {
   
   red <- sapply(list(M, N), is.null)
