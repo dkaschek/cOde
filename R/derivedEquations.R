@@ -25,12 +25,14 @@
 sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL) {
   
   variables <- names(f)
-    
+  states <- states[!states%in%inputs]
+  
   if(is.null(parameters)) {
     pars <- getSymbols(f, exclude=c(variables, inputs, "time"))
   } else {
-    pars <- parameters
+    pars <- parameters[!parameters%in%inputs]
   }
+  
   
   
   Dyf <- jacobianSymb(f, states)
