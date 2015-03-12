@@ -323,8 +323,14 @@ odeC <- function(y, times, func, parms, ...) {
   if (!is.null(attr(func, "forcings"))) 
     arglist <- c(arglist, list(initforc = "initforc"))
   
-  arglist <- c(arglist, list(...))
-    
+  # Replace arguments and add new ones
+  moreargs <- list(...)
+  i <- match(names(moreargs), names(arglist))
+  is.overlap <- which(!is.na(i))
+  is.new <- which(is.na(i))
+  arglist[i[is.overlap]] <- moreargs[is.overlap]
+  arglist <- c(arglist, moreargs[is.new])
+  
   loadDLL(func)
   out <- do.call(deSolve::ode, arglist)[which.times,]
 
