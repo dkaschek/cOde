@@ -50,6 +50,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   # Write sensitivity equations in matrix form
   Dy0y <- matrix(sensParVariablesY0, ncol = ds, nrow = dv)
   Dpy <- matrix(sensParVariablesP, ncol = dp, nrow = dv)
+  
+  
   gl <- c(as.vector(prodSymb(matrix(Dyf, ncol = dv), Dy0y)), 
           as.vector(sumSymb(prodSymb(matrix(Dyf, ncol = dv), Dpy), matrix(Dpf, nrow = dv))))
  

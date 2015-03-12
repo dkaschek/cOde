@@ -208,22 +208,31 @@ replaceOperation <- function(what, by, x) {
 #' jacobianSymb(c(x="A*B", y="A+B"), c("A", "B"))
 #' @export
 jacobianSymb <- function(f, variables=NULL) {
+  
   if(is.null(variables)) variables <- names(f)
-  
-  
-  
-  #print(variables[1:5])
-  
   jacnames <- apply(expand.grid.alt(names(f), variables), 1, paste, collapse=".")
+  jacobian <- matrix("0", nrow = length(f), ncol = length(variables))
   
-  Dyf <- lapply(variables, function(x) {
-    lapply(f, function(expr) {
-      paste(deparse(D(parse(text=expr), x)),collapse="")
-    })
-  })
+  # Determine possible non-zero elements of the jacobian
+  out <- lapply(variables, function(v) which(grepl(v, f)))
+  inz <- do.call(rbind, lapply(1:length(variables), function(j) if(length(out[[j]])>0) cbind(i = out[[j]], j = j)))
   
-  out <- unlist(Dyf)
-  
+  # Commpute derivatives for potential non-zero elements
+  for(k in 1:dim(inz)[1]) {
+    
+    i <- inz[k, 1]
+    j <- inz[k, 2]
+    
+    myeq <- parse(text = f[i])
+    myvar <-variables[j]
+    myderiv <- paste(deparse(D(myeq, myvar)), collapse="")
+    
+    jacobian[i, j] <- myderiv
+    
+  }
+    
+    
+  out <- as.vector(jacobian)
   out <- gsub(" ", "", out, fixed=TRUE)
   out <- gsub("++", "+", out, fixed=TRUE)
   out <- gsub("--", "+", out, fixed=TRUE)
