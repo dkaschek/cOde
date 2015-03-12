@@ -2,7 +2,9 @@
 #' 
 #' @param f Named character vector containing the right-hand sides of the ODE
 #' @param forcings Character vector with the names of the forcings
-#' @param jacobian Logical indicating whether the jacobian is computed and written into the C file
+#' @param jacobian Character, either "none" (no jacobian is computed), "full" (full jacobian 
+#' is computed and written as a function into the C file) or "inz.lsodes" (only the non-zero elements
+#' of the jacobian are determined, see \link{deSolve::lsodes})
 #' @param boundary data.frame with columns name, yini, yend specifying the boundary condition set-up. NULL if not a boundary value problem
 #' @param compile Logical. If FALSE, only the C file is written
 #' @param nGridpoints Integer, defining the number of grid points between tmin and tmax where the ODE
@@ -21,7 +23,7 @@
 #' f <- c(x = "-k*x + supply")
 #' func <- funC(f, forcings = "supply")
 #' @export
-funC <- function(f, forcings=NULL, jacobian=FALSE, boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
+funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
   
   myattr <- attributes(f)
   if("names"%in%names(myattr)) myattr <- myattr[-which(names(myattr)=="names")]
@@ -42,8 +44,15 @@ funC <- function(f, forcings=NULL, jacobian=FALSE, boundary=NULL, compile = TRUE
   symbols <- getSymbols(f)
   parameters <- symbols[!symbols%in%c(variables, forcings, "time")]
   jac <- NULL
+  inz <- NULL
   
-  if(jacobian) jac  <- jacobianSymb(f)
+  jacobian <- match.arg(jacobian)
+  if(jacobian != "none") jac  <- jacobianSymb(f)
+  if(jacobian == "inz.lsodes") {
+    jac <- matrix(jac, length(f), length(f))
+    inz <- apply(jac, 2, function(v) which(v != "0"))
+    inz <- do.call(rbind, lapply(1:length(inz), function(j) if(length(inz[[j]]) > 0) cbind(i = inz[[j]], j = j)))
+  }
   not.zero.jac <- which(jac != "0")
   
   dv <- length(variables)
@@ -55,7 +64,7 @@ funC <- function(f, forcings=NULL, jacobian=FALSE, boundary=NULL, compile = TRUE
   f <- replaceOperation("^", "pow", f)
   f <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), f)
   
-  if(jacobian) {
+  if(jacobian == "full") {
     jac <- replaceOperation("^", "pow", jac)
     jac <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), jac)
   }
@@ -111,7 +120,7 @@ funC <- function(f, forcings=NULL, jacobian=FALSE, boundary=NULL, compile = TRUE
   cat("\n")
   
   ## Jacobian of deriv
-  if(jacobian) {
+  if(jacobian == "full") {
     cat("/** Jacobian of the ODE system **/\n")
     cat("void jacobian (int *n, double *t, double *y, double * df, double *RPAR, int *IPAR) {\n")
     cat("\n")
@@ -191,6 +200,7 @@ funC <- function(f, forcings=NULL, jacobian=FALSE, boundary=NULL, compile = TRUE
   attr(f, "parameters") <- parameters
   attr(f, "forcings") <- forcings
   attr(f, "jacobian") <- jacobian
+  attr(f, "inz") <- inz
   attr(f, "boundary") <- boundary
   attr(f, "nGridpoints") <- nGridpoints
   
@@ -294,19 +304,30 @@ odeC <- function(y, times, func, parms, ...) {
   times.inner <- sort(unique(c(times, times.inner)))
   which.times <- match(times, times.inner)
   
-  loadDLL(func)
   y <- y[attr(func, "variables")]
   parms <- parms[attr(func, "parameters")]
   parms <- c(parms, rep(0, length(y)))
-  if (attr(func, "jacobian")) 
-    jacfunc <- "jacobian"
-  else jacfunc <- NULL
-  if (is.null(attr(func, "forcings"))) 
-    initforc <- NULL
-  else initforc <- "initforc"
-  out <- deSolve::ode(y, times.inner, "derivs", parms, dllname = func, initfunc = "initmod", 
-             initforc = initforc, jacfunc = jacfunc, 
-             ...)[which.times,]
+  
+  arglist <- list(y = y, times = times.inner, func = "derivs", parms = parms, dllname = func, initfunc = "initmod")
+  
+  
+  if (attr(func, "jacobian") == "full")
+    arglist <- c(arglist, list(jacfunc = "jacobian"))
+    
+  if (attr(func, "jacobian") == "inz.lsodes") {
+    inz <- attr(func, "inz")
+    lrw <- 20 + 3*dim(inz)[1] + 20*length(y)
+    arglist <- c(arglist, list(sparsetype = "sparseusr", inz = inz, lrw = lrw))
+  }
+    
+  if (!is.null(attr(func, "forcings"))) 
+    arglist <- c(arglist, list(initforc = "initforc"))
+  
+  arglist <- c(arglist, list(...))
+    
+  loadDLL(func)
+  out <- do.call(deSolve::ode, arglist)[which.times,]
+
   return(out)
   
   
