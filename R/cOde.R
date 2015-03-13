@@ -23,7 +23,7 @@
 #' f <- c(x = "-k*x + supply")
 #' func <- funC(f, forcings = "supply")
 #' @export
-funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
+funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
   
   myattr <- attributes(f)
   if("names"%in%names(myattr)) myattr <- myattr[-which(names(myattr)=="names")]
@@ -48,9 +48,9 @@ funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes"), bou
   
   jacobian <- match.arg(jacobian)
   if(jacobian != "none") jac  <- jacobianSymb(f)
-  if(jacobian == "inz.lsodes") {
-    jac <- matrix(jac, length(f), length(f))
-    inz <- apply(jac, 2, function(v) which(v != "0"))
+  if(jacobian %in% c("inz.lsodes", "jacvec.lsodes")) {
+    jac.matrix <- matrix(jac, length(f), length(f))
+    inz <- apply(jac.matrix, 2, function(v) which(v != "0"))
     inz <- do.call(rbind, lapply(1:length(inz), function(j) if(length(inz[[j]]) > 0) cbind(i = inz[[j]], j = j)))
   }
   not.zero.jac <- which(jac != "0")
@@ -64,7 +64,7 @@ funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes"), bou
   f <- replaceOperation("^", "pow", f)
   f <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), f)
   
-  if(jacobian == "full") {
+  if(jacobian %in% c("full", "jacvec.lsodes")) {
     jac <- replaceOperation("^", "pow", jac)
     jac <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), jac)
   }
@@ -132,6 +132,35 @@ funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes"), bou
     cat("\n")
     cat("}\n")
     cat("\n")
+  }
+  
+  ## Jacvec of deriv
+  if(jacobian == "jacvec.lsodes") {
+    vecs <- lapply(1:dv, function(i) matrix(jac, ncol=dv, nrow=dv)[,i])
+    not.zero.vec <- lapply(vecs, function(v) which(v != "0"))
+    not.zero.columns <- which(sapply(not.zero.vec, function(v) length(v) > 0))
+    cat("/** Jacobian vector of the ODE system **/\n")
+    cat("void jacvec (int *neq, double *t, double *y, int *j, int *ian, int *jan, double *pdj, double *yout, int *iout) {\n")
+    cat("\n")
+    cat("\n")
+    cat("\t double time = *t;\n")
+    cat("\t int i;\n")
+    cat("\t for(i=0; i<*neq; i++) pdj[i] = 0.;\n")
+    
+    j <- not.zero.columns[1]
+    cat(paste("\t if(*j ==", j, ") {\n"))
+    cat(paste("\t pdj[", not.zero.vec[[j]]-1,"] = ", vecs[[j]][not.zero.vec[[j]]],";\n", sep=""))
+    cat("\t }\n")
+    for(j in not.zero.columns[-1]) {
+      cat(paste("\t else if(*j ==", j, ") {\n"))
+      cat(paste("\t pdj[", not.zero.vec[[j]]-1,"] = ", vecs[[j]][not.zero.vec[[j]]],";\n", sep=""))
+      cat("\t }\n")
+    }
+    
+    cat("\n")
+    cat("}\n")
+    cat("\n")
+    
   }
   
   
@@ -318,6 +347,11 @@ odeC <- function(y, times, func, parms, ...) {
     inz <- attr(func, "inz")
     lrw <- 20 + 3*dim(inz)[1] + 20*length(y)
     arglist <- c(arglist, list(sparsetype = "sparseusr", inz = inz, lrw = lrw))
+  }
+  
+  if (attr(func, "jacobian") == "jacvec.lsodes") {
+    inz <- attr(func, "inz")
+    arglist <- c(arglist, list(sparsetype = "sparseusr", jacvec = "jacvec", inz = inz))
   }
     
   if (!is.null(attr(func, "forcings"))) 
