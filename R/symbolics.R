@@ -8,6 +8,10 @@
 #' @export
 replaceSymbols <- function(what, by, x) {
   
+  xOrig <- x
+  is.not.zero <- which(x!="0")
+  x <- x[is.not.zero]
+  
   mynames <- names(x)
   
   x.parsed <- parse(text = x, keep.source = TRUE)
@@ -30,9 +34,11 @@ replaceSymbols <- function(what, by, x) {
   })
     
   names(out) <- mynames
-  out <- unlist(out)  
+  out <- unlist(out)
   
-  return(out)
+  xOrig[is.not.zero] <- out
+  
+  return(xOrig)
   
   
 }
@@ -78,16 +84,13 @@ replaceOperation <- function(what, by, x) {
     
     
     #add negative signs to numeric constants
-    i <- 2
-    while(i <= nrow(pres)){
-      if(pres[i,"token"] == "NUM_CONST" && pres[i-1,"token"] == "'-'"){
-        pres[i-1,"text"] <- paste("-",pres[i,"text"],sep="")
-        pres[i-1, c("line2", "col2", "parent", "token")] <- pres[i, c("line2", "col2", "parent", "token")]
-        pres <- pres[-i,]
-      }
-      else{  
-        i <- i+1
-      }
+    signs <- pres[1:(nrow(pres)-1), "token"]
+    numbers <- pres[2:nrow(pres), "token"]
+    index <- which(signs == "'-'" & numbers == "NUM_CONST")
+    if(length(index) > 0) {
+      pres[index, "text"] <- paste0("-", pres[index+1, "text"])
+      pres[index, c("line2", "col2", "parent", "token")] <- pres[index+1, c("line2", "col2", "parent", "token")]
+      pres <- pres[-(index+1),]  
     }
     
     positions <- which(pres$text%in%what)
@@ -254,6 +257,7 @@ jacobianSymb <- function(f, variables=NULL) {
 #' @export
 getSymbols <- function(char, exclude = NULL) {
   
+  char <- char[char!="0"]
   out <- parse(text=char)
   out <- getParseData(out)
   names <- unique(out$text[out$token == "SYMBOL"])
