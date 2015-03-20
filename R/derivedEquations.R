@@ -22,7 +22,7 @@
 #' @example inst/examples/example2.R
 #' @example inst/examples/example3.R
 #' @export
-sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL) {
+sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, reduce = FALSE) {
   
   variables <- names(f)
   states <- states[!states%in%inputs]
@@ -59,10 +59,21 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   newvariables.grid <- expand.grid.alt(variables, c(states, pars))
   newvariables <- apply(newvariables.grid, 1, paste, collapse=".")
   names(newfun) <- newvariables
+  
+  # Reduce the sensitivities
+  vanishing <- c(sensParVariablesY0, sensParVariablesP[Dpf == "0"])
+  if(reduce) {
+    newfun <- reduceSensitivities(newfun, vanishing)
+    is.zero.sens <- newfun == "0"
+  } else {
+    is.zero.sens <- rep(FALSE, length(newfun))
+  }
+  newfun <- newfun[!is.zero.sens]
+  
     
   # Append initial values
   initials <- rep(0, length(newfun))
-  names(initials) <- newvariables
+  names(initials) <- newvariables[!is.zero.sens]
   ones <- which(apply(newvariables.grid, 1, function(row) row[1] == row[2]))
   initials[newvariables[ones]] <- 1
   
@@ -78,12 +89,14 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     
   sensitivities <- lapply(pars, function(p) paste0(states, ".", p))
   names(sensitivities) <- pars
-  
+    
   grad <- sapply(pars, function(p) paste0(paste("2*", res, "*", sensitivities[[p]]), collapse=" + "))
   names(grad) <- paste("chi", pars, sep=".")
+  grad <- replaceSymbols(newvariables[is.zero.sens], "0", grad)
   
   attr(newfun, "chi") <- chi
   attr(newfun, "grad") <- grad
+  attr(newfun, "is.zero.Dpf") <- vanishing
   attr(newfun, "forcings") <- c(statesD, weightsD)
   attr(newfun, "yini") <- initials
     
