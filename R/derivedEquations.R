@@ -94,6 +94,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
 }
 
 
+
+
 #' Compute adjoint equations of a function symbolically
 #' 
 #' @param f Named vector of type character, the functions
