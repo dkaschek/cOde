@@ -2,6 +2,7 @@
 #' 
 #' @param f Named character vector containing the right-hand sides of the ODE
 #' @param forcings Character vector with the names of the forcings
+#' @param zeroOutputs character vector for additional variables that are zero, e.g. sensitivities
 #' @param jacobian Character, either "none" (no jacobian is computed), "full" (full jacobian 
 #' is computed and written as a function into the C file) or "inz.lsodes" (only the non-zero elements
 #' of the jacobian are determined, see \link{deSolve::lsodes})
@@ -23,7 +24,7 @@
 #' f <- c(x = "-k*x + supply")
 #' func <- funC(f, forcings = "supply")
 #' @export
-funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
+funC <- function(f, forcings=NULL, zeroOutputs=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
   
   constraints <- NULL # Might be an interesting option in the future
   myattr <- attributes(f)
@@ -60,6 +61,7 @@ funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes", "jac
   dp <- length(parameters)
   if(is.null(forcings)) di <- 0 else di <- length(forcings)
   if(is.null(constraints)) dc <- 0 else dc <- length(constraints)
+  if(is.null(zeroOutputs)) do <- 0 else do <- length(zeroOutputs)
   
   ## Replace powers and symbols to get correct C syntax
   
@@ -127,6 +129,12 @@ funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes", "jac
   #if(length(reductions)>0) cat(paste("\t double ", reductions, ";\n", sep=""))
   cat(paste("\t ydot[", 0:(dv-1),"] = ", f,";\n", sep=""))
   cat("\n")
+  if(di > 0){
+    cat(paste0("\t RPAR[", 0:(di-1),"] = ",forcings,";\n"))
+  }
+  if(do >0){
+    cat("\t for(int i= ",di,"; i < ",do+di,"; ++i) RPAR[i] = 0;\n")
+  }
   cat("}\n")
   cat("\n")
   
@@ -243,6 +251,7 @@ funC <- function(f, forcings=NULL, jacobian=c("none", "full", "inz.lsodes", "jac
   attr(f, "inz") <- inz
   attr(f, "boundary") <- boundary
   attr(f, "nGridpoints") <- nGridpoints
+  attr(f, "zeroOutputs") <- zeroOutputs
   
   
   class(f) <- c("nospline", class(f))

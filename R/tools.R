@@ -36,7 +36,7 @@ reduceSensitivities <- function(sens, is.zero.Dpf) {
   }
   sens[sensvar.zero] <- "0"
   sens <- replaceSymbols(sensvar.zero, "0", sens)
-  
+  attr(sens,"is.zero") <- sensvar.zero
   #return(list(sens, sensvar.zero,sensvar.nonzero))
   return(sens)
 }
