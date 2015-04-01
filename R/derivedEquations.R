@@ -70,6 +70,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   }
   newfun <- newfun[!is.zero.sens]
   
+  
     
   # Append initial values
   initials <- rep(0, length(newfun))
@@ -96,7 +97,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   
   attr(newfun, "chi") <- chi
   attr(newfun, "grad") <- grad
-  attr(newfun, "is.zero.Dpf") <- vanishing
+  attr(newfun, "outputs") <- structure(rep(0, length(which(is.zero.sens))), names = newvariables[is.zero.sens])
   attr(newfun, "forcings") <- c(statesD, weightsD)
   attr(newfun, "yini") <- initials
     

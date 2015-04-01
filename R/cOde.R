@@ -2,7 +2,8 @@
 #' 
 #' @param f Named character vector containing the right-hand sides of the ODE
 #' @param forcings Character vector with the names of the forcings
-#' @param zeroOutputs character vector for additional variables that are zero, e.g. sensitivities
+#' @param outputs Named character vector for additional output variables, 
+#' see arguments \code{nout} and \code{outnames} of \link{lsode}
 #' @param jacobian Character, either "none" (no jacobian is computed), "full" (full jacobian 
 #' is computed and written as a function into the C file) or "inz.lsodes" (only the non-zero elements
 #' of the jacobian are determined, see \link{deSolve::lsodes})
@@ -24,7 +25,7 @@
 #' f <- c(x = "-k*x + supply")
 #' func <- funC(f, forcings = "supply")
 #' @export
-funC <- function(f, forcings=NULL, zeroOutputs=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
+funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
   
   constraints <- NULL # Might be an interesting option in the future
   myattr <- attributes(f)
@@ -61,7 +62,7 @@ funC <- function(f, forcings=NULL, zeroOutputs=NULL, jacobian=c("none", "full", 
   dp <- length(parameters)
   if(is.null(forcings)) di <- 0 else di <- length(forcings)
   if(is.null(constraints)) dc <- 0 else dc <- length(constraints)
-  if(is.null(zeroOutputs)) do <- 0 else do <- length(zeroOutputs)
+  if(is.null(outputs)) do <- 0 else do <- length(outputs)
   
   ## Replace powers and symbols to get correct C syntax
   
@@ -80,10 +81,12 @@ funC <- function(f, forcings=NULL, zeroOutputs=NULL, jacobian=c("none", "full", 
     constraints <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), constraints)
   }
   
+  if(!is.null(outputs)) {
+    outputs <- replaceOperation("^", "pow", outputs)
+    outputs <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), outputs)
+  }
   
-  
-  
-  
+    
   
   
   ## ------------ write C code -------------
@@ -132,8 +135,12 @@ funC <- function(f, forcings=NULL, zeroOutputs=NULL, jacobian=c("none", "full", 
   if(di > 0){
     cat(paste0("\t RPAR[", 0:(di-1),"] = ",forcings,";\n"))
   }
-  if(do >0){
+  if(do > 0){
     cat("\t for(int i= ",di,"; i < ",do+di,"; ++i) RPAR[i] = 0;\n")
+    non.zero.outputs <- which(outputs != "0")
+    for(i in non.zero.outputs) 
+      cat(paste0("\t RPAR[", di + i - 1, "] = ", outputs[i], ";\n")) 
+    
   }
   cat("}\n")
   cat("\n")
@@ -247,11 +254,12 @@ funC <- function(f, forcings=NULL, zeroOutputs=NULL, jacobian=c("none", "full", 
   attr(f, "variables") <- variables
   attr(f, "parameters") <- parameters
   attr(f, "forcings") <- forcings
+  attr(f, "outputs") <- outputs
   attr(f, "jacobian") <- jacobian
   attr(f, "inz") <- inz
   attr(f, "boundary") <- boundary
   attr(f, "nGridpoints") <- nGridpoints
-  attr(f, "zeroOutputs") <- zeroOutputs
+  
   
   
   class(f) <- c("nospline", class(f))
@@ -352,6 +360,7 @@ odeC <- function(y, times, func, parms, ...) {
   times.inner <- seq(min(c(times, 0)), max(times), len=nGridpoints)
   times.inner <- sort(unique(c(times, times.inner)))
   which.times <- match(times, times.inner)
+  yout <- c(attr(func, "forcings"), names(attr(func, "outputs")))
   
   y <- y[attr(func, "variables")]
   parms <- parms[attr(func, "parameters")]
@@ -376,6 +385,10 @@ odeC <- function(y, times, func, parms, ...) {
     
   if (!is.null(attr(func, "forcings"))) 
     arglist <- c(arglist, list(initforc = "initforc"))
+  
+  if (!is.null(yout)) {
+    arglist <- c(arglist, list(nout = length(yout), outnames = yout))
+  }
   
   # Replace arguments and add new ones
   moreargs <- list(...)
