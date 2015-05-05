@@ -22,7 +22,7 @@ reduceSensitivities <- function(sens, is.zero.Dpf) {
   sensvar.nonzero <- sensvar[ini.nonzero]
   while(!exit){
     find_nonzero <- unlist(lapply(sensvar.zero, function(s){
-      allSyb <- sensvar[sensvar %in%getSymbols(sens[s])]
+      allSyb <- union(s,sensvar[sensvar %in%getSymbols(sens[s])])
       nDpf <- setdiff(allSyb,is.zero.Dpf)
       nIni <- intersect(sensvar.nonzero,allSyb)
       nonzero <- (length(nDpf)+length(nIni) > 0)
