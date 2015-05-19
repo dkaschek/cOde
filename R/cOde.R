@@ -25,10 +25,11 @@
 #' f <- c(x = "-k*x + supply")
 #' func <- funC(f, forcings = "supply")
 #' @export
-funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
+funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), rootfunc = NULL, boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
   
   constraints <- NULL # Might be an interesting option in the future
   myattr <- attributes(f)
+  equations <- f
   if("names"%in%names(myattr)) myattr <- myattr[-which(names(myattr)=="names")]
   
   if(is.null(modelname)) modelname <- paste(c(".f", sample(c(letters, 0:9), 8, TRUE)), collapse="")
@@ -44,8 +45,8 @@ funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz
   ## Analyze f by parser
   
   variables <- names(f)
-  symbols <- getSymbols(f)
-  parameters <- symbols[!symbols%in%c(variables, forcings, names(constraints), "time")]
+  symbols <- getSymbols(c(f, rootfunc, constraints))
+  parameters <- symbols[!symbols%in%c(variables, forcings, names(constraints), names(rootfunc), "time")]
   jac <- NULL
   inz <- NULL
   
@@ -63,6 +64,7 @@ funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz
   if(is.null(forcings)) di <- 0 else di <- length(forcings)
   if(is.null(constraints)) dc <- 0 else dc <- length(constraints)
   if(is.null(outputs)) do <- 0 else do <- length(outputs)
+  if(is.null(rootfunc)) dr <- 0 else dr <- length(rootfunc)
   
   ## Replace powers and symbols to get correct C syntax
   
@@ -84,6 +86,11 @@ funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz
   if(!is.null(outputs)) {
     outputs <- replaceOperation("^", "pow", outputs)
     outputs <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), outputs)
+  }
+  
+  if(!is.null(rootfunc)) {
+    rootfunc <- replaceOperation("^", "pow", rootfunc)
+    rootfunc <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), rootfunc)
   }
   
     
@@ -189,6 +196,18 @@ funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz
     
   }
   
+  if(!is.null(rootfunc)) {
+    
+    cat("/** Root function **/\n")
+    cat("void myroot(int *neq, double *t, double *y, int *ng, double *gout, double *out, int *ip ) {\n")
+    cat("\n")
+    cat("\n")
+    cat("\t double time = *t;\n")
+    cat(paste("\t gout[", 0:(dr-1),"] = ", rootfunc,";\n", sep=""))
+    cat("\n")
+    cat("}\n")
+    
+  }
   
   if(!is.null(boundary)) {
     
@@ -251,6 +270,7 @@ funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz
   f <- dllname
   attributes(f) <- c(attributes(f), myattr)
   
+  attr(f, "equations") <- equations
   attr(f, "variables") <- variables
   attr(f, "parameters") <- parameters
   attr(f, "forcings") <- forcings
@@ -258,6 +278,7 @@ funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz
   attr(f, "jacobian") <- jacobian
   attr(f, "inz") <- inz
   attr(f, "boundary") <- boundary
+  attr(f, "rootfunc") <- rootfunc
   attr(f, "nGridpoints") <- nGridpoints
   
   
@@ -385,7 +406,10 @@ odeC <- function(y, times, func, parms, ...) {
     
   if (!is.null(attr(func, "forcings"))) 
     arglist <- c(arglist, list(initforc = "initforc"))
-  
+ 
+  if(!is.null(attr(func, "rootfunc")))
+    arglist <- c(arglist, list(rootfunc = "myroot", nroot = length(attr(func, "rootfunc"))))
+   
   if (!is.null(yout)) {
     arglist <- c(arglist, list(nout = length(yout), outnames = yout))
   }
@@ -399,7 +423,9 @@ odeC <- function(y, times, func, parms, ...) {
   arglist <- c(arglist, moreargs[is.new])
   
   loadDLL(func)
-  out <- do.call(deSolve::ode, arglist)[which.times,]
+  out <- do.call(deSolve::ode, arglist)
+  out.index <- unique(c(which.times[which.times <= nrow(out)], nrow(out)))
+  out <- out[out.index, ]
 
   return(out)
   
