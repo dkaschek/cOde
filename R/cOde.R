@@ -1,12 +1,16 @@
 #' Generate C code for a function and compile it
 #' 
-#' @param f Named character vector containing the right-hand sides of the ODE
+#' @param f Named character vector containing the right-hand sides of the ODE. You may use the key word
+#' \code{time} in your equations for non-autonomous ODEs. 
 #' @param forcings Character vector with the names of the forcings
 #' @param outputs Named character vector for additional output variables, 
 #' see arguments \code{nout} and \code{outnames} of \link{lsode}
 #' @param jacobian Character, either "none" (no jacobian is computed), "full" (full jacobian 
 #' is computed and written as a function into the C file) or "inz.lsodes" (only the non-zero elements
 #' of the jacobian are determined, see \link{deSolve::lsodes})
+#' @param rootfunc Named character vector. The root function (see \link{deSolve::lsoda}). Besides the
+#' variable names (\code{names(f)}) also other symbols are allowed that are treated like new
+#' parameters.
 #' @param boundary data.frame with columns name, yini, yend specifying the boundary condition set-up. NULL if not a boundary value problem
 #' @param compile Logical. If FALSE, only the C file is written
 #' @param nGridpoints Integer, defining the number of grid points between tmin and tmax where the ODE
@@ -17,13 +21,25 @@
 #' in order to have the correct C syntax. The file name of the C-File is derived from \code{f}. 
 #' I.e. \code{funC(abc, ...} will generate a file abc.c in the current directory. 
 #' Currently, only explicit ODE specification is supported, i.e. you need to have the right-hand sides of the ODE.
-#' In case you have explicitly time-dependent ODEs, please introduce time t as explicit variable, e.g. \code{f <- c(t = "1", x = "a*t - x", ...)}.
 #' 
 #' @return the name of the generated shared object file together with a number of attributes
 #' @examples 
 #' # Exponential decay plus constant supply
 #' f <- c(x = "-k*x + supply")
 #' func <- funC(f, forcings = "supply")
+#' 
+#' # Example 2: root function
+#' f <- c(A = "-k1*A + k2*B", B = "k1*A - k2*B")
+#' rootfunc <- c(steadyState = "-k1*A + k2*B - tol")
+#' 
+#' func <- funC(f, rootfunc = rootfunc, modelname = "test")
+#' 
+#' yini <- c(A = 1, B = 2)
+#' parms <- c(k1 = 1, k2 = 5, tol = 0.1)
+#' times <- seq(0, 10, len = 100)
+#' 
+#' odeC(yini, times, func, parms)
+#' 
 #' @export
 funC <- function(f, forcings=NULL, outputs=NULL, jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), rootfunc = NULL, boundary=NULL, compile = TRUE, nGridpoints = 500, modelname = NULL) {
   
