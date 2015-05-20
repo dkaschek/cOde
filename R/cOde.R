@@ -4,11 +4,11 @@
 #' \code{time} in your equations for non-autonomous ODEs. 
 #' @param forcings Character vector with the names of the forcings
 #' @param outputs Named character vector for additional output variables, 
-#' see arguments \code{nout} and \code{outnames} of \link{lsode}
+#' see arguments \code{nout} and \code{outnames} of \link[deSolve]{lsode}
 #' @param jacobian Character, either "none" (no jacobian is computed), "full" (full jacobian 
 #' is computed and written as a function into the C file) or "inz.lsodes" (only the non-zero elements
-#' of the jacobian are determined, see \link{deSolve::lsodes})
-#' @param rootfunc Named character vector. The root function (see \link{deSolve::lsoda}). Besides the
+#' of the jacobian are determined, see \link[deSolve]{lsodes})
+#' @param rootfunc Named character vector. The root function (see \link[deSolve]{lsoda}). Besides the
 #' variable names (\code{names(f)}) also other symbols are allowed that are treated like new
 #' parameters.
 #' @param boundary data.frame with columns name, yini, yend specifying the boundary condition set-up. NULL if not a boundary value problem
@@ -17,6 +17,7 @@
 #' (forcings are handled as splines within the C code based on the einspline library).
 #' @param nGridpoints Integer, defining the number of grid points between tmin and tmax where the ODE
 #' is computed in any case. Indicates also the number of spline nodes if \code{fcontrol = "einspline"}.
+#' @param precision Numeric. Only used when \code{fcontrol = "einspline"}.
 #' @param modelname Character. The C file is generated in the working directory and is named <modelname>.c.
 #' If \code{NULL}, a random name starting with ".f" is chosen, i.e. the file is hidden on a UNIX system.
 #' @details The function replaces variables by arrays \code{y[i]}, etc. and replaces "^" by pow() 
@@ -26,6 +27,7 @@
 #' 
 #' @return the name of the generated shared object file together with a number of attributes
 #' @examples 
+#' \dontrun{
 #' # Exponential decay plus constant supply
 #' f <- c(x = "-k*x + supply")
 #' func <- funC(f, forcings = "supply")
@@ -41,7 +43,7 @@
 #' times <- seq(0, 10, len = 100)
 #' 
 #' odeC(yini, times, func, parms)
-#' 
+#' }
 #' @export
 funC <- function(f, forcings=NULL, outputs=NULL, 
                  jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), 
@@ -578,7 +580,7 @@ bvptwpC <- function(yini=NULL, x, func, yend=NULL, parms, xguess=NULL, yguess=NU
 
   print(initforc)
    
-  out <- do.call(bvptwp, c(moreargs, list(
+  out <- do.call(bvpSolve::bvptwp, c(moreargs, list(
     x = x, parms = newparms, xguess = xguess, yguess = yguess, posbound=posbound,
     func = "derivs", jacfunc = "jacobian", bound = "gsub", jacbound = "dgsub", 
     initfunc = "initmod", initforc = initforc,

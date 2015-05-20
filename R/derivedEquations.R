@@ -8,6 +8,8 @@
 #' values of these parameters
 #' @param inputs Character vector. Input functions or forcings. They are excluded from
 #' the computation of sensitivities.
+#' @param reduce Logical. Attempts to determine vanishing sensitivities, removes their
+#' equations and replaces their right-hand side occurences by 0.
 #' @details The sensitivity equations are ODEs that are derived from the original ODE f.
 #' They describe the sensitivity of the solution curve with respect to parameters like 
 #' initial values and other parameters contained in f. These equtions are also useful

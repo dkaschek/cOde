@@ -1,14 +1,12 @@
-#' D.character
-#' @export
-D.character <- function(what, by) paste(deparse(D(parse(text = what), by)), collapse="")
-
 #' reduceSensitivities
+#' @param sens Named character, the sensitivity equations
+#' @param vanishing Character, names of the vanishing sensitivities
+#' @details Given the set \code{vanishing} of vanishing sensitivities, the algorithm
+#' determins sensitivities that vanish as a consequence of the first set.
+#' @return Named character, the sensitivity equations with zero entries for vanishing
+#' sensitivities.
 #' @export
-#' @examples
-#' f <- c(C = "-1*k3*C +1*k2*B", B = "-1*k2*B +1*k1*A*A", A = "-2*k1*A*A +1*buildA")
-#' mysens <- sensitivitiesSymb(f)
-#' red <- reduceSensitivities(mysens, attr(mysens, "is.zero.Dpf"))
-reduceSensitivities <- function(sens, is.zero.Dpf) {
+reduceSensitivities <- function(sens, vanishing) {
 
   sensvar <- names(sens)
   senssplit <- strsplit(sensvar, ".", fixed=TRUE)
@@ -23,7 +21,7 @@ reduceSensitivities <- function(sens, is.zero.Dpf) {
   while(!exit){
     find_nonzero <- unlist(lapply(sensvar.zero, function(s){
       allSyb <- union(s,sensvar[sensvar %in%getSymbols(sens[s])])
-      nDpf <- setdiff(allSyb,is.zero.Dpf)
+      nDpf <- setdiff(allSyb,vanishing)
       nIni <- intersect(sensvar.nonzero,allSyb)
       nonzero <- (length(nDpf)+length(nIni) > 0)
     }))
