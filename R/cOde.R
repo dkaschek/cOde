@@ -13,8 +13,10 @@
 #' parameters.
 #' @param boundary data.frame with columns name, yini, yend specifying the boundary condition set-up. NULL if not a boundary value problem
 #' @param compile Logical. If FALSE, only the C file is written
+#' @param fcontrol Character, either \code{"nospline"} (default, forcings are handled by deSolve) or \code{"einspline"}
+#' (forcings are handled as splines within the C code based on the einspline library).
 #' @param nGridpoints Integer, defining the number of grid points between tmin and tmax where the ODE
-#' is computed in any case. 
+#' is computed in any case. Indicates also the number of spline nodes if \code{fcontrol = "einspline"}.
 #' @param modelname Character. The C file is generated in the working directory and is named <modelname>.c.
 #' If \code{NULL}, a random name starting with ".f" is chosen, i.e. the file is hidden on a UNIX system.
 #' @details The function replaces variables by arrays \code{y[i]}, etc. and replaces "^" by pow() 

@@ -30,7 +30,7 @@ boundary <- data.frame(
 pars <- c(build_O3 = .2, decay_O3 = .1, eps = 1)
 
 # Generate ODE function
-func <- funC(f = f_tot, forcings = forcings, jacobian = TRUE, boundary = boundary)
+func <- funC(f = f_tot, forcings = forcings, jacobian = "full", boundary = boundary, fcontrol = "einspline", modelname = "test")
 
 # Initialize forcings (the objective)
 forcData <- data.frame(time = times,
