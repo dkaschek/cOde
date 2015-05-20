@@ -67,18 +67,19 @@ funC <- function(f, forcings=NULL, outputs=NULL,
   
   ## Check which kind of forcings are used
   fcontrol <- match.arg(fcontrol)
-  forcings <- structure(forcings, names = forcings)
-  forcings.t <- structure(paste(forcings, "t", sep="."), names = paste(forcings, "t", sep="."))
-  if(fcontrol == "einspline" & length(forcings) > 0) {
-    forcings[1:length(forcings)] <- paste0("x[", 1:length(forcings)-1, "]")
-    forcings.t[1:length(forcings.t)] <- paste0("xdot[", 1:length(forcings.t)-1, "]")
+  forcings.t <- paste(forcings, "t", sep=".")
+  forc.replace <- forcings
+  forc.t.replace <- forcings.t
+  if(fcontrol == "einspline" & !is.null(forcings)) {
+    forc.replace <- paste0("x[", 1:length(forcings)-1, "]")
+    forc.t.replace <- paste0("xdot[", 1:length(forcings.t)-1, "]")
   }
   
   ## Analyze f by parser
   
   variables <- names(f)
   symbols <- getSymbols(c(f, rootfunc, constraints))
-  parameters <- symbols[!symbols%in%c(variables, names(forcings), names(constraints), names(rootfunc), "time")]
+  parameters <- symbols[!symbols%in%c(variables, forcings, names(constraints), names(rootfunc), "time")]
   jac <- NULL
   inz <- NULL
   
@@ -104,8 +105,8 @@ funC <- function(f, forcings=NULL, outputs=NULL,
     f <- replaceOperation("^", "pow", f)
     f <- replaceSymbols(variables, paste0("y[", 1:length(variables)-1, "]"), f)
     f <- replaceSymbols(names(constraints), paste0("cons[", 1:dc-1, "]"), f)
-    f <- replaceSymbols(names(forcings), forcings, f)
-    f <- replaceSymbols(names(forcings.t), forcings.t, f)
+    f <- replaceSymbols(forcings, forc.replace, f)
+    f <- replaceSymbols(forcings.t, forc.t.replace, f)
     return(f)
   }
   
@@ -137,8 +138,8 @@ funC <- function(f, forcings=NULL, outputs=NULL,
     includings <- c(includings, "#include <einspline/nubspline.h>")
   
   definitions <- paste0("#define ", c(parameters, paste0("y",0:(dv-1),"_0")), " parms[", 0:(dv+dp-1),"]")
-  if(length(forcings) > 0) 
-    definitions <- c(definitions, paste0("#define ", names(forcings), " forc[", 0:(di-1),"]"))
+  if(!is.null(forcings)) 
+    definitions <- c(definitions, paste0("#define ", forcings, " forc[", 0:(di-1),"]"))
   
   
   sink(filename)
@@ -194,7 +195,7 @@ funC <- function(f, forcings=NULL, outputs=NULL,
   # Return forcings and other outputs (only for IVP)
   if(is.null(boundary)) {
     if(di > 0){
-      cat(paste0("\t RPAR[", 0:(di-1),"] = ", forcings,";\n"))
+      cat(paste0("\t RPAR[", 0:(di-1),"] = ", forc.replace,";\n"))
     }
     if(do > 0){
       cat("\t for(int i= ",di,"; i < ",do+di,"; ++i) RPAR[i] = 0;\n")
@@ -404,7 +405,7 @@ setForcings <- function(func, forcings) {
   
   #loadDLL(func)
   
-  inputs <- names(attr(func, "forcings"))
+  inputs <- attr(func, "forcings")
   fcontrol <- attr(func, "fcontrol")
   nGridpoints <- attr(func, "nGridpoints")
   trange <- range(forcings$time)
@@ -466,7 +467,7 @@ odeC <- function(y, times, func, parms, ...) {
   times.inner <- seq(min(c(times, 0)), max(times), len=nGridpoints)
   times.inner <- sort(unique(c(times, times.inner)))
   which.times <- match(times, times.inner)
-  yout <- c(names(attr(func, "forcings")), names(attr(func, "outputs")))
+  yout <- c(attr(func, "forcings"), names(attr(func, "outputs")))
   
   y <- y[attr(func, "variables")]
   parms <- parms[attr(func, "parameters")]

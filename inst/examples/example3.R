@@ -22,7 +22,7 @@ grad <- attr(f_s, "grad")
 forcings <- attr(f_s, "forcings")
 
 # Generate ODE function
-func <- funC(f = c(f, f_s, chi, grad), forcings = forcings, fcontrol = "einspline")
+func <- funC(f = c(f, f_s, chi, grad), forcings = forcings, fcontrol = "nospline")
 
 # Initialize times, states, parameters
 times <- seq(0, 15, by = .1)

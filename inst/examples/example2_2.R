@@ -20,7 +20,7 @@ f_s <- sensitivitiesSymb(f, reduce = TRUE, inputs = forcings)
 outputs <- c(attr(f_s, "outputs"), sum = "A + B + C")
 
 # Generate ODE function
-func <- funC(c(f, f_s), forcings = forcings, outputs = outputs)
+func <- funC(c(f, f_s), forcings = forcings, outputs = outputs, fcontrol = "nospline")
 
 # Initialize times, states, parameters and forcings
 times <- seq(0, 15, by = .1)
