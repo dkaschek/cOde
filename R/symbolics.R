@@ -220,20 +220,22 @@ jacobianSymb <- function(f, variables=NULL) {
   out <- lapply(variables, function(v) which(grepl(v, f)))
   inz <- do.call(rbind, lapply(1:length(variables), function(j) if(length(out[[j]])>0) cbind(i = out[[j]], j = j)))
   
+  
   # Commpute derivatives for potential non-zero elements
-  for(k in 1:dim(inz)[1]) {
-    
-    i <- inz[k, 1]
-    j <- inz[k, 2]
-    
-    myeq <- parse(text = f[i])
-    myvar <-variables[j]
-    myderiv <- paste(deparse(D(myeq, myvar)), collapse="")
-    
-    jacobian[i, j] <- myderiv
-    
+  if(!is.null(inz)) {
+    for(k in 1:dim(inz)[1]) {
+      
+      i <- inz[k, 1]
+      j <- inz[k, 2]
+      
+      myeq <- parse(text = f[i])
+      myvar <-variables[j]
+      myderiv <- paste(deparse(D(myeq, myvar)), collapse="")
+      
+      jacobian[i, j] <- myderiv
+      
+    }
   }
-    
     
   out <- as.vector(jacobian)
   out <- gsub(" ", "", out, fixed=TRUE)
