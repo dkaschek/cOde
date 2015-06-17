@@ -67,7 +67,6 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   if(reduce) {
     newfun <- reduceSensitivities(newfun, vanishing)
     is.zero.sens <- names(newfun) %in% attr(newfun,"is.zero")
-    names(is.zero.sens) <- names(newfun)
   } else {
     is.zero.sens <- rep(FALSE, length(newfun))
   }
