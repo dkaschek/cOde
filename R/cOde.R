@@ -381,8 +381,9 @@ loadDLL <- function(func, cfunction="derivs") {
     dyn.load(paste0(func, .so))
     cat("Shared object is loaded and ready to use\n")
   } else if((checkDLL$package)[[1]] != func) {
-    warning("Conflicting shared object was unloaded and new one is loaded")
-    dyn.unload(paste0((checkDLL$package)[[1]], .so))
+    test <- try(dyn.unload(paste0((checkDLL$package)[[1]], .so)), silent = TRUE)
+    if(!inherits(test, "try-error")) 
+      warning("Conflicting shared object was unloaded and new one is loaded")
     dyn.load(paste0(func, .so))
   }
   
