@@ -1,12 +1,13 @@
 ---
-title: "README"
+title: "Automated C Code Generation for Use with the 'deSolve' and 'bvpSolve' Packages"
 author: "Daniel Kaschek"
 date: "September 29, 2015"
 output: html_document
 ---
 
+cOde generates all necessary C functions allowing the user to work with the compiled-code interface of ode() and bvptwp(). The implementation supports "forcings" and "events". The package also provides functions to symbolically compute Jacobians, sensitivity equations and adjoint sensitivities being the basis for sensitivity analysis.
 
-## Exponential decay
+## First example: exponential decay
 
 $$A \stackrel{k1}{\rightarrow} B \stackrel{k2}{\rightarrow} \emptyset$$
 
@@ -38,7 +39,7 @@ with(as.data.frame(out), matplot(x = time, y = cbind(A, B), type = "l", lty = 1)
 ![plot of chunk decay](figure/decay-1.png) 
 
 
-## Sensitivity equations
+## Second example: sensitivity equations
 
 Given the ODE $\dot x = f(x, p)$, generate the sensitivity equations and integrate the together with the original ODE.
 
