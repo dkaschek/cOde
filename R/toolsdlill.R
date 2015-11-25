@@ -40,10 +40,18 @@ f <- c(
   B = "-k1 * B + k2 * A^2"
 )
 
+
+#zum Testen von Reduce Sensitivities
+f <- c(
+  A = "k1 * B  - k2 * A^2",
+  B = "-k1 * B "
+)
+
+
 states = names(f)
 parameters = NULL
 inputs = NULL
-reduce = FALSE
+reduce = TRUE
 
 expand.grid.alt <- function(seq1,seq2) {
   cbind(Var1=rep.int(seq1, length(seq2)), Var2=rep(seq2, each=length(seq1)))
@@ -109,30 +117,65 @@ secondsensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inp
   
   #Second Sensitivies of ode with respect to parameters
   # g <- newfun[(dv*ds+1):length(newfun)] #first sensitivities
-  # it is possible to reduce the number of elements computed due to the symmetry in indices of derivation, 
-  # ie d^2x_i/(dp_j dp_k) = d^2x_i/(dp_k dp_j). Perhaps one could also just reduce the output because the symbolic
-  # computation is quite elegant.
+
+  # calculate the three summands of the 2nd degree sensitivities and add them
   
-  # calculate the three summands of the 2nd degree sensitivities
-  Dyg <- jacobianSymb(newfun[(dv*ds+1):length(newfun)], variables) 
+  Dyg <- jacobianSymb(newfun[(sum(!is.zero.sens[1:(dv*ds)], na.rm=TRUE)+1):length(newfun)], variables) #hier muss man evtl vanishing sensitivites noch beachten!!!
   SecondSensSum1 <- as.vector(prodSymb(matrix(Dyg,ncol=dv),Dpy)) 
   
   mygridPP<-expand.grid.alt(sensParVariablesP,pars)
   sensParVariablesPP <- apply(mygridPP, 1, paste, collapse=".")
   SecondSensSum2 <- as.vector(prodSymb(matrix(Dyf,ncol=dv),matrix(sensParVariablesPP, nrow = dv))) 
   
-  SecondSensSum3 <- jacobianSymb(newfun[(dv*ds+1):length(newfun)], pars) 
+  SecondSensSum3 <- jacobianSymb(newfun[(sum(!is.zero.sens[1:(dv*ds)], na.rm=TRUE)+1):length(newfun)], pars) 
   
-  # everything correct, in terms of usage of jacobianSymb and just symbolic representations of derivatives (like A.k1)
-  
-  # Summation of the three terms, gives second sensitivies as vector
   SecondSens <- as.vector(sumSymb(sumSymb(SecondSensSum1,SecondSensSum2),SecondSensSum3))
+  names(SecondSens) <- names(SecondSensSum3)  
+
+  # consider symmetries of derivative indices ie d^2x_i/(dp_j dp_k) = d^2x_i/(dp_k dp_j)
+  # der Vektor secondSens sieht folgendermaßen aus: (ijk), wobei erst i durchgefahren wird, dann j, dann k
+  # auffassen als vektor von matrizen jk, in denen nur die diagonalelemente genommen werden
+  
+  secondsenssplit <-strsplit(names(SecondSens), ".", fixed= TRUE)
+  secondsenssplit.1<-unlist(lapply(secondsenssplit, function(v) v[1]))
+  secondsenssplit.2<-unlist(lapply(secondsenssplit, function(v) v[2]))
+  secondsenssplit.3<-unlist(lapply(secondsenssplit, function(v) v[3]))
+#   ini.samesame<-which((secondsenssplit.2 == secondsenssplit.3))
+#   ini.notsame<-which(secondsenssplit.2 != secondsenssplit.3)
+  permutedjk<-paste(secondsenssplit.1,secondsenssplit.3,secondsenssplit.2, sep=".") #vertausche j und k
+  pairs<-unlist(lapply(permutedjk, function(v) match(v, names(SecondSens)))) #finde die Paare
+  names(pairs)<-1:(length(pairs))
+  
+  unique.inz<-unlist(lapply((1:length(pairs)), function(s) {
+    ifelse(names(pairs)[s]<=pairs[s], s, NA)
+  }))
+  unique.inz<-unique.inz[!is.na(unique.inz)]
+  
+  SecondSens<-SecondSens[unique.inz]
+  
+#   # find indices that are already covered by symmetry and dismiss them from the output
+#   # it's an ugly bit of code, maybe I'll rewrite it someday...
+#   SymInd<-1:(dv*dp^2)
+#   # names(SymInd)<-names(SecondSens)
+#   names(SymInd)<-as.character(SymInd)
+#   SymInd2<-NULL
+#   for(j in 0:(dv-1)) {
+#     dummyvec<-NULL
+#     for(i in SymInd)  {
+#       if(SymInd[i]%%dv==j) dummyvec<-c(dummyvec,SymInd[i])
+#     }
+#     dummynames<-names(dummyvec)
+#     dummyvec<-as.vector(lower.tri(matrix(1:(dp^2), nrow = dp),diag=TRUE))
+#     names(dummyvec)<-dummynames
+#     SymInd2<-c(SymInd2, dummyvec)
+#   }
+#   SecondSens<-SecondSens[SymInd2[sort(names(SymInd2))]]
   
   #initials for second sensitivities (sind natürlich auch null)
-  Secondyini<-rep(0,dv*dp*dp)
+  Secondyini<-rep(0,length(SecondSens))
+  names(Secondyini) <- names(SecondSens)
   
-  #naming  
-  names(Secondyini) <- names(SecondSens) <- names(SecondSensSum3)
+  #Reduce the Second Sensitivities
   
   
   
