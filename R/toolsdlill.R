@@ -140,47 +140,24 @@ secondsensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inp
   secondsenssplit.1<-unlist(lapply(secondsenssplit, function(v) v[1]))
   secondsenssplit.2<-unlist(lapply(secondsenssplit, function(v) v[2]))
   secondsenssplit.3<-unlist(lapply(secondsenssplit, function(v) v[3]))
-#   ini.samesame<-which((secondsenssplit.2 == secondsenssplit.3))
-#   ini.notsame<-which(secondsenssplit.2 != secondsenssplit.3)
+  
   permutedjk<-paste(secondsenssplit.1,secondsenssplit.3,secondsenssplit.2, sep=".") #vertausche j und k
-  pairs<-unlist(lapply(permutedjk, function(v) match(v, names(SecondSens)))) #finde die Paare
-  names(pairs)<-1:(length(pairs))
+  pairs<-unlist(lapply(permutedjk, function(v) match(v, names(SecondSens)))) #finde j<->k-Paare und eventuelle reduced Sensitivities
   
   unique.inz<-unlist(lapply((1:length(pairs)), function(s) {
-    ifelse(names(pairs)[s]<=pairs[s], s, NA)
-  }))
-  unique.inz<-unique.inz[!is.na(unique.inz)]
+    ifelse(s<=pairs[s], s, NA)
+  })) # nimmt von jeder j-k-Permutation nur diejenige, bei der j<=k ist und setzt alle anderen gleich NA,
+  # alle Paare, von denen eine Permutation schon wegen reduced Symmetries geflogen ist, werden auch gleich NA gesetzt 
+  unique.inz<-unique.inz[!is.na(unique.inz)] 
   
   SecondSens<-SecondSens[unique.inz]
-  
-#   # find indices that are already covered by symmetry and dismiss them from the output
-#   # it's an ugly bit of code, maybe I'll rewrite it someday...
-#   SymInd<-1:(dv*dp^2)
-#   # names(SymInd)<-names(SecondSens)
-#   names(SymInd)<-as.character(SymInd)
-#   SymInd2<-NULL
-#   for(j in 0:(dv-1)) {
-#     dummyvec<-NULL
-#     for(i in SymInd)  {
-#       if(SymInd[i]%%dv==j) dummyvec<-c(dummyvec,SymInd[i])
-#     }
-#     dummynames<-names(dummyvec)
-#     dummyvec<-as.vector(lower.tri(matrix(1:(dp^2), nrow = dp),diag=TRUE))
-#     names(dummyvec)<-dummynames
-#     SymInd2<-c(SymInd2, dummyvec)
-#   }
-#   SecondSens<-SecondSens[SymInd2[sort(names(SymInd2))]]
   
   #initials for second sensitivities (sind natürlich auch null)
   Secondyini<-rep(0,length(SecondSens))
   names(Secondyini) <- names(SecondSens)
   
-  #Reduce the Second Sensitivities
-  
-  
-  
 
-  
+
   # Compute wrss
   pars <- c(pars, states)
   
