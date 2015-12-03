@@ -53,6 +53,7 @@ funC <- function(f, forcings=NULL, outputs=NULL,
                  nGridpoints = 500, precision=1e-5, modelname = NULL,
                  verbose = FALSE) {
   
+  f <- unclass(f)
   constraints <- NULL # Might be an interesting option in the future
   myattr <- attributes(f)
   equations <- f
@@ -523,8 +524,8 @@ odeC <- function(y, times, func, parms, ...) {
   
   out <- do.call(deSolve::ode, arglist)
   out.index <- unique(c(which.times[which.times <= nrow(out)], nrow(out)))
-  out <- out[out.index, ]
-
+  out <- matrix(out[out.index, ], nrow = length(out.index), dimnames = list(NULL, colnames(out)))
+  
   return(out)
   
   
