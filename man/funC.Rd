@@ -7,7 +7,8 @@
 funC(f, forcings = NULL, outputs = NULL, jacobian = c("none", "full",
   "inz.lsodes", "jacvec.lsodes"), rootfunc = NULL, boundary = NULL,
   compile = TRUE, fcontrol = c("nospline", "einspline"),
-  nGridpoints = 500, precision = 1e-05, modelname = NULL)
+  nGridpoints = 500, precision = 1e-05, modelname = NULL,
+  verbose = FALSE)
 }
 \arguments{
 \item{f}{Named character vector containing the right-hand sides of the ODE. You may use the key word
@@ -40,6 +41,8 @@ is computed in any case. Indicates also the number of spline nodes if \code{fcon
 
 \item{modelname}{Character. The C file is generated in the working directory and is named <modelname>.c.
 If \code{NULL}, a random name starting with ".f" is chosen, i.e. the file is hidden on a UNIX system.}
+
+\item{verbose}{Print compiler output to R command line.}
 }
 \value{
 the name of the generated shared object file together with a number of attributes
