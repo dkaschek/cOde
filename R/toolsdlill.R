@@ -60,7 +60,7 @@ expand.grid.alt <- function(seq1,seq2) {
 
 
 
-secondsensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, reduce = FALSE) {
+# secondsensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, reduce = FALSE) {
   variables <- names(f)
   states <- states[!states%in%inputs]
   
@@ -125,7 +125,8 @@ secondsensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inp
   
   mygridPP<-expand.grid.alt(sensParVariablesP,pars)
   sensParVariablesPP <- apply(mygridPP, 1, paste, collapse=".")
-  SecondSensSum2 <- as.vector(prodSymb(matrix(Dyf,ncol=dv),matrix(sensParVariablesPP, nrow = dv))) 
+  SecondSensSum2 <- matrix(prodSymb(matrix(Dyf,ncol=dv),matrix(sensParVariablesPP, nrow = dv)), ncol=dp) 
+  SecondSensSum2 <- as.vector(SecondSensSum2[!is.zero.sens[(dv*ds+1):length(is.zero.sens)],]) # to consider reduced symmetries
   
   SecondSensSum3 <- jacobianSymb(newfun[(sum(!is.zero.sens[1:(dv*ds)], na.rm=TRUE)+1):length(newfun)], pars) 
   
@@ -148,6 +149,25 @@ secondsensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inp
     ifelse(s<=pairs[s], s, NA)
   })) # nimmt von jeder j-k-Permutation nur diejenige, bei der j<=k ist und setzt alle anderen gleich NA,
   # alle Paare, von denen eine Permutation schon wegen reduced Symmetries geflogen ist, werden auch gleich NA gesetzt 
+  
+  # if a combination like "yi.pj.pj" is zero but it still comes up as a symbol in other second sensitivities, set it to zero
+  secondZerosSame <- strsplit(sensParVariablesPP, ".", fixed= TRUE)
+  secondZerosSame <- secondZerosSame[unlist(lapply(secondZerosSame, function(v) v[2]==v[3]))]
+  secondZerosSame <- unlist(lapply(secondZerosSame, function(v) paste(v[1],v[2],v[3],sep=".")))
+  secondZerosSame <- secondZerosSame[!(secondZerosSame %in% names(SecondSens))]
+  
+  # change symbolic derivatives like "yi.pj.pk" to "yi.pk.pj" if the first index combination is being eliminated due to symmetry
+
+  origSecondNames<-c(names(SecondSens[is.na(unique.inz)]),permutedjk[is.na(pairs)],secondZerosSame)
+  
+  secondZerosNames<-names(SecondSens[pairs[is.na(unique.inz)]])
+  secondZerosNames[is.na(secondZerosNames)]<-0
+  secondZerosNames<-c(secondZerosNames, rep_len("0", length.out = sum(is.na(pairs), length(secondZerosSame))))
+  
+  
+  replaceSymbols(origSecondNames, secondZerosNames ,SecondSens)
+  
+  
   unique.inz<-unique.inz[!is.na(unique.inz)] 
   
   SecondSens<-SecondSens[unique.inz]
