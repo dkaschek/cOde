@@ -385,11 +385,12 @@ loadDLL <- function(func, cfunction="derivs") {
   checkDLL <- try(getNativeSymbolInfo(cfunction), silent=TRUE)
   if(inherits(checkDLL, "try-error")) {
     dyn.load(paste0(func, .so))
-    cat("Shared object is loaded and ready to use\n")
+    #cat("Shared object is loaded and ready to use\n")
+  } else if ((is.null(checkDLL$package))) {
+    # We are on Windows (always overload)
+    dyn.load(paste0(func, .so))
   } else if((checkDLL$package)[[1]] != func) {
-    test <- try(dyn.unload(paste0((checkDLL$package)[[1]], .so)), silent = TRUE)
-    if(!inherits(test, "try-error")) 
-      warning("Conflicting shared object was unloaded and new one is loaded")
+    # We are on Unix
     dyn.load(paste0(func, .so))
   }
   
