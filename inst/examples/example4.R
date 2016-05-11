@@ -1,9 +1,9 @@
 \dontrun{
 
-##############################################################################################
-## Boundary value problem: Ozon formation with fixed ozon/oxygen ratio at 
-## final time point
-##############################################################################################
+######################################################################
+## Boundary value problem: Ozon formation with fixed ozon/oxygen ratio
+## at final time point
+######################################################################
 
 library(bvpSolve)
 
@@ -31,10 +31,12 @@ func <- funC(f, jacobian="full", boundary = bound)
 times <- seq(0, 15, by = .1)
 pars <- c(decay_O3 = .1)
 xguess <- times
-yguess <- matrix(c(1, 1, 1, 1, 1), ncol=length(times), nrow = length(f))
+yguess <- matrix(c(1, 1, 1, 1, 1), ncol=length(times), 
+                 nrow = length(f))
 
 # Solve BVP
-out <- bvptwpC(x = times, func = func, parms = pars, xguess = xguess, yguess = yguess)
+out <- bvptwpC(x = times, func = func, parms = pars, 
+               xguess = xguess, yguess = yguess)
 
 # Solve BVP for different ini values, end values and parameters
 yini <- c(O3 = 2)
@@ -49,9 +51,12 @@ t <- out[,1]
 M1 <- out[,2:5]
 M2 <- cbind(out[,6], pars)
 
-matplot(t, M1, type="l", lty=1, col=1:4, xlab="time", ylab="value", main="states")
-legend("topright", legend = c("O3", "O2", "O", "O2 - O3"), lty=1, col=1:4)
-matplot(t, M2, type="l", lty=1, col=1:2, xlab="time", ylab="value", main="parameters")
+matplot(t, M1, type="l", lty=1, col=1:4, 
+        xlab="time", ylab="value", main="states")
+legend("topright", legend = c("O3", "O2", "O", "O2 - O3"), 
+       lty=1, col=1:4)
+matplot(t, M2, type="l", lty=1, col=1:2, 
+        xlab="time", ylab="value", main="parameters")
 legend("right", legend = c("build_O3", "decay_O3"), lty=1, col=1:2)
 
 }

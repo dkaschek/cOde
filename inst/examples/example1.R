@@ -1,8 +1,8 @@
 \dontrun{
 
-##############################################################################################
+######################################################################
 ## Ozone formation and decay, modified by external forcings
-##############################################################################################
+######################################################################
 
 library(deSolve)
 data(forcData)
@@ -17,7 +17,8 @@ f <- c(
 
 # Generate ODE function
 forcings <- c("u_build", "u_degrade")
-func <- funC(f, forcings = forcings, modelname = "test", fcontrol = "nospline", nGridpoints = 10)
+func <- funC(f, forcings = forcings, modelname = "test", 
+             fcontrol = "nospline", nGridpoints = 10)
 
 # Initialize times, states, parameters and forcings
 times <- seq(0, 8, by = .1)
@@ -27,7 +28,8 @@ pars <- c(build_O3 = 1/6, decay_O3 = 1)
 forc <- setForcings(func, forcData)
 
 # Solve ODE
-out <- odeC(y = yini, times = times, func = func, parms = pars, forcings = forc)
+out <- odeC(y = yini, times = times, func = func, parms = pars, 
+            forcings = forc)
 
 # Plot solution
 

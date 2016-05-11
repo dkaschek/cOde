@@ -1,8 +1,8 @@
 \dontrun{
 
-##############################################################################################
+######################################################################
 ## Sensitivity analysis of ozone formation
-##############################################################################################
+######################################################################
 
 library(deSolve)
 
@@ -37,12 +37,18 @@ M4 <- out[,11:13]
 M5 <- out[,14:16]
 M6 <- out[,17:19]
 
-matplot(t, M1, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="solution")
+matplot(t, M1, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="solution")
 legend("topright", legend = c("O3", "O2", "O"), lty=1, col=1:3)
-matplot(t, M2, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d O3)")
-matplot(t, M3, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d O2)")
-matplot(t, M4, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d O)")
-matplot(t, M5, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d build_O3)")
-matplot(t, M6, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d decay_O3)")
+matplot(t, M2, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d O3)")
+matplot(t, M3, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d O2)")
+matplot(t, M4, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d O)")
+matplot(t, M5, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d build_O3)")
+matplot(t, M6, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d decay_O3)")
 
 }

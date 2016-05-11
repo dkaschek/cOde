@@ -8,7 +8,7 @@ Depends:
 Suggests:
     deSolve,
     bvpSolve
-Date: 2015-06-10
+Date: 2016-05-11
 Author: Daniel Kaschek
 Maintainer: Daniel Kaschek <daniel.kaschek@physik.uni-freiburg.de>
 Description: Generates all necessary C functions allowing the user to work with

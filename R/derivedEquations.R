@@ -216,10 +216,12 @@ adjointSymb <- function(f, states=names(f), parameters = NULL, inputs=NULL) {
 #'@title Forcings data.frame
 #'@name forcData
 #'@docType data
+#'@description Forcings data.frame
 #' 
 NULL
 
 #'@title Time-course data of O, O2 and O3
 #'@name oxygenData
 #'@docType data 
+#'@description Forcings data.frame
 NULL

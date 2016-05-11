@@ -43,9 +43,9 @@ attributes for the chisquare functional and its gradient.
 \examples{
 \dontrun{
 
-##############################################################################################
+######################################################################
 ## Sensitivity analysis of ozone formation
-##############################################################################################
+######################################################################
 
 library(deSolve)
 
@@ -80,20 +80,26 @@ M4 <- out[,11:13]
 M5 <- out[,14:16]
 M6 <- out[,17:19]
 
-matplot(t, M1, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="solution")
+matplot(t, M1, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="solution")
 legend("topright", legend = c("O3", "O2", "O"), lty=1, col=1:3)
-matplot(t, M2, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d O3)")
-matplot(t, M3, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d O2)")
-matplot(t, M4, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d O)")
-matplot(t, M5, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d build_O3)")
-matplot(t, M6, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="d/(d decay_O3)")
+matplot(t, M2, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d O3)")
+matplot(t, M3, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d O2)")
+matplot(t, M4, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d O)")
+matplot(t, M5, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d build_O3)")
+matplot(t, M6, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="d/(d decay_O3)")
 
 }
 \dontrun{
 
-##############################################################################################
+######################################################################
 ## Estimate parameter values from experimental data
-##############################################################################################
+######################################################################
 
 library(deSolve)
 
@@ -113,7 +119,8 @@ grad <- attr(f_s, "grad")
 forcings <- attr(f_s, "forcings")
 
 # Generate ODE function
-func <- funC(f = c(f, f_s, chi, grad), forcings = forcings, fcontrol = "nospline")
+func <- funC(f = c(f, f_s, chi, grad), forcings = forcings, 
+             fcontrol = "nospline")
 
 # Initialize times, states, parameters
 times <- seq(0, 15, by = .1)
@@ -126,7 +133,9 @@ pars <- c(build_O3 = .2, decay_O3 = .1)
 # Initialize forcings (the data)
 data(oxygenData)
 forcData <- data.frame(time = oxygenData[,1],
-                       name = rep(colnames(oxygenData[,-1]), each=dim(oxygenData)[1]),
+                       name = rep(
+                         colnames(oxygenData[,-1]), 
+                         each=dim(oxygenData)[1]),
                        value = as.vector(oxygenData[,-1]))
 forc <- setForcings(func, forcData)
 
@@ -143,10 +152,12 @@ M2 <- out[,names(grad)]
 tD <- oxygenData[,1]
 M1D <- oxygenData[,2:4]
 
-matplot(t, M1, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="states")
+matplot(t, M1, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="states")
 matplot(tD, M1D, type="b", lty=2, col=1:3, pch=4, add=TRUE)
 legend("topright", legend = names(f), lty=1, col=1:3)
-matplot(t, M2, type="l", lty=1, col=1:5, xlab="time", ylab="value", main="gradient")
+matplot(t, M2, type="l", lty=1, col=1:5, 
+        xlab="time", ylab="value", main="gradient")
 legend("topleft", legend = names(grad), lty=1, col=1:5)
 
 # Define objective function
@@ -156,7 +167,8 @@ obj <- function(p) {
 	      forcings = forc, method="lsodes")
   
   value <- as.vector(tail(out, 1)[,"chi"])
-  gradient <- as.vector(tail(out, 1)[,paste("chi", names(p), sep=".")])
+  gradient <- as.vector(
+    tail(out, 1)[,paste("chi", names(p), sep=".")])
   hessian <- gradient\%*\%t(gradient)
   
   return(list(value = value, gradient = gradient, hessian = hessian))
@@ -183,10 +195,12 @@ M2 <- prediction[,names(grad)]
 tD <- oxygenData[,1]
 M1D <- oxygenData[,2:4]
 
-matplot(t, M1, type="l", lty=1, col=1:3, xlab="time", ylab="value", main="states")
+matplot(t, M1, type="l", lty=1, col=1:3, 
+        xlab="time", ylab="value", main="states")
 matplot(tD, M1D, type="b", lty=2, col=1:3, pch=4, add=TRUE)
 legend("topright", legend = names(f), lty=1, col=1:3)
-matplot(t, M2, type="l", lty=1, col=1:5, xlab="time", ylab="value", main="gradient")
+matplot(t, M2, type="l", lty=1, col=1:5, 
+        xlab="time", ylab="value", main="gradient")
 legend("topleft", legend = names(grad), lty=1, col=1:5)
 
 }
