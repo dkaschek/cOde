@@ -572,6 +572,61 @@ setForcings <- function(func, forcings) {
 #' @export
 odeC <- function(y, times, func, parms, ...) {
   
+  # Sundials::cvodes
+  if (attr(func, "solver") == "Sundials") {
+    
+    # Check input: states initials and parameters values
+    y <- y[attr(func, "variables")]
+    if (any(is.na(y))) {
+      stop("At least one state is not provided with an initial value.")
+    }
+    
+    parms <- parms[attr(func, "parameters")]
+    if (any(is.na(parms))) {
+      stop("At least one parameter value is unspecified.")
+    }
+  
+    
+    # Extract cvodes settings from ...
+    varargs <- list(...)
+    varnames <- names(varargs)
+    
+    settings <- list(rtol = 1e-6,
+                     atol = 1e-6,
+                     maxsteps = 1e3,
+                     maxord = 5,
+                     hini = 0,
+                     hmin = 0,
+                     hmax = 100,
+                     maxerr = 5,
+                     maxnonlin = 10,
+                     maxconvfail = 10,
+                     method = "bdf",
+                     jacobian = 0,
+                     minimum = -1e-4,
+                     positive = 1,
+                     which_states = 1:length(y),
+                     which_observed = integer(),
+                     stability = TRUE)
+    
+    userSettings <- intersect(names(settings), varnames)
+    settings[userSettings] <- varargs[userSettings]
+
+    
+    # Call integrator
+    out = wrap_cvodes(times = times,
+                      states_ = y,
+                      parameters_ = parms,
+                      forcings_data_ = list(cbind(1:10,1:10)),
+                      settings = settings,
+                      model_ = attr(func, "address"),
+                      jacobian_ = attr(func, "address"))
+    
+    colnames(out) <- c("time", attr(func, "variables"))
+
+    return(out)
+  }
+  
   nGridpoints <- attr(func, "nGridpoints")
   times.inner <- seq(min(c(times, 0)), max(times), len=nGridpoints)
   times.inner <- sort(unique(c(times, times.inner)))
