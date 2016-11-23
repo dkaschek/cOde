@@ -337,14 +337,14 @@ funC <- function(f, forcings=NULL, outputs=NULL,
 
   } else if (solver == "Sundials") {
   ## ---- Sundials::cvodes: write code ----
-    filename <- paste0(modelname, ".cpp")
+    dllname <- paste0(modelname, "_sdcv")
+    filename <- paste0(dllname, ".cpp")
     writeOdeSystemSundials(f, variables, parameters, filename)
   }
   
   
-  
   ## ---- Compile and load shared object file ----
-  if (compile) compileAndLoad(modelname, filename, fcontrol, verbose)
+  if (compile) compileAndLoad(filename, dllname, fcontrol, verbose)
   
   
   
@@ -380,7 +380,7 @@ funC <- function(f, forcings=NULL, outputs=NULL,
 #'   
 #' @author Daniel Kaschek, \email{daniel.kaschek@@physik.uni-freiburg.de}
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-compileAndLoad <- function(modelname, filename, fcontrol, verbose) {
+compileAndLoad <- function(filename, dllname, fcontrol, verbose) {
   if (fcontrol == "nospline") 
     shlibOut <- system(paste0(R.home(component = "bin"), "/R CMD SHLIB ", filename), intern = TRUE)
   if (fcontrol == "einspline")
@@ -390,7 +390,7 @@ compileAndLoad <- function(modelname, filename, fcontrol, verbose) {
   }
   
   .so <- .Platform$dynlib.ext
-  dllname <- paste0(modelname, .so)
+  dllname <- paste0(dllname, .so)
   soExists <- file.exists(dllname)
   if (soExists) {
     try(dyn.unload(dllname), silent = TRUE)
@@ -438,10 +438,11 @@ writeOdeSystemSundials <- function(f, variables, parameters, filename) {
   #### Includes and function signature
   includes <- paste("#include <array>",
                     "#include <vector>",
+                    "#include <cmath>",
                     "using namespace std;\n\n", sep = "\n")
   
   #### Return statement
-  ret <- paste("    array<vector<double>, 2> output{{move(ydot), f}};",
+  ret <- paste("    array<vector<double>, 2> output = {ydot, ydot};",
                "    return output;",
                "}}", sep = "\n")
   

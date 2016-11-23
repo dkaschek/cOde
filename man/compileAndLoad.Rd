@@ -4,16 +4,16 @@
 \alias{compileAndLoad}
 \title{Compile and load shared object implementing the ODE system.}
 \usage{
-compileAndLoad(modelname, filename, fcontrol, verbose)
+compileAndLoad(filename, dllname, fcontrol, verbose)
 }
 \arguments{
-\item{modelname}{Base name for source and dll file.}
-
 \item{filename}{Full file name of the source file.}
 
 \item{fcontrol}{Interpolation method for forcings.}
 
 \item{verbose}{Print compiler output or not.}
+
+\item{modelname}{Base name for source and dll file.}
 }
 \description{
 Compile and load shared object implementing the ODE system.
