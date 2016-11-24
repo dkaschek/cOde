@@ -605,7 +605,7 @@ odeC <- function(y, times, func, parms, ...) {
                      jacobian = 0,
                      minimum = -1e-4,
                      positive = 1,
-                     which_states = 1:length(y),
+                     which_states = length(y),
                      which_observed = integer(),
                      stability = TRUE)
     
@@ -621,8 +621,8 @@ odeC <- function(y, times, func, parms, ...) {
                       settings = settings,
                       model_ = attr(func, "address"),
                       jacobian_ = attr(func, "address"))
-    
-    colnames(out) <- c("time", attr(func, "variables"))
+    outStates <- attr(func, "variables")[1:settings[["which_states"]]]
+    colnames(out) <- c("time", outStates)
 
     return(out)
   }
