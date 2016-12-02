@@ -5,15 +5,16 @@
 \title{Sundials::cvodes: Replace powers and symbols to get correct C++ syntax for
 cvodes.}
 \usage{
-cvodesSyntax(f, variables, parameters)
+cvodesSyntax(f, variables, parameters, forcings)
 }
 \arguments{
-\item{f}{Named character vector containing the right-hand sides of the ODE.
-You may use the key word.}
+\item{f}{Named character vector.}
 
 \item{variables}{Variables appearing on the ODE, \code{names(f)}.}
 
 \item{parameters}{Parameters appearing in the ODE.}
+
+\item{forcings}{Inhomogenity of the ODE. Currently not used.}
 }
 \description{
 Sundials::cvodes: Replace powers and symbols to get correct C++ syntax for

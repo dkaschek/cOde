@@ -4,7 +4,7 @@
 \alias{writeOdeSystemSundials}
 \title{Implement the ODE system for sundials::cvodes.}
 \usage{
-writeOdeSystemSundials(f, variables, parameters, filename)
+writeOdeSystemSundials(f, variables, parameters, jac, not.zero.jac, filename)
 }
 \arguments{
 \item{f}{Named character vector containing the right-hand sides of the ODE.

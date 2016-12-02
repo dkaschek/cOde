@@ -8,6 +8,7 @@ Depends:
 Suggests:
     deSolve,
     bvpSolve
+SystemRequirements: C++11
 Date: 2016-05-11
 Author: Daniel Kaschek
 Maintainer: Daniel Kaschek <daniel.kaschek@physik.uni-freiburg.de>
