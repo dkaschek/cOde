@@ -338,9 +338,22 @@ funC <- function(f, forcings=NULL, outputs=NULL,
 
   } else if (solver == "Sundials") {
   ## ---- Sundials::cvodes: write code ----
+    #### Assemble source code
+    program <- c(sundialsIncludes(), sundialsODE(f, variables, parameters))
+    
+    if (jacobian != "none") {
+      program <- c(program, sundialsJac(f, variables, parameters))
+    }
+    
+    
+    ## Write source code
     dllname <- paste0(modelname, "_sdcv")
     filename <- paste0(dllname, ".cpp")
-    writeOdeSystemSundials(f, variables, parameters, jac, not.zero.jac, filename)
+    cppFile <- file(filename, open = "w")
+    writeLines(c(program,
+                 "}" # Matches extern "C" {
+                 ), cppFile)
+    close(cppFile)
   }
   
   
@@ -366,7 +379,9 @@ funC <- function(f, forcings=NULL, outputs=NULL,
   attr(f, "nGridpoints") <- nGridpoints
   attr(f, "fcontrol") <- fcontrol
   attr(f, "solver" ) <- solver
-  attr(f, "address") <- getNativeSymbolInfo("derivs", PACKAGE = dllname)$address
+  attr(f, "addressODE") <- getNativeSymbolInfo("derivs", PACKAGE = dllname)$address
+  attr(f, "addressJac") <- if (jacobian != "none") getNativeSymbolInfo("jac_in_Cpp_stl", PACKAGE = dllname)$address
+                           else NULL
   return(f)
 }
 
@@ -420,16 +435,12 @@ cvodesSyntax <- function(f, variables, parameters, forcings) {
 
 
 
-#' Implement the ODE system for sundials::cvodes.
+#' Infos and includes for sundials::cvodes C++ code: ODE, Jacobian.
 #' 
-#' @param f Named character vector containing the right-hand sides of the ODE.
-#'   You may use the key word.
-#' @param variables Variables appearing on the ODE, \code{names(f)}.
-#' @param parameters Parameters appearing in the ODE.
-#' @param filename Output file for c++ source code.
+#' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-writeOdeSystemSundials <- function(f, variables, parameters, jac, not.zero.jac, filename) {
+sundialsIncludes <- function() {
   ## General preparations
   #### User info
   prolog <- paste("/**",
@@ -437,78 +448,91 @@ writeOdeSystemSundials <- function(f, variables, parameters, jac, not.zero.jac, 
                   "** Do not edit by hand.",
                   "**/", sep = "\n")
   
+  
   #### Includes and function signature
   includes <- paste("#include <array>",
                     "#include <vector>",
                     "#include <cmath>",
-                    "using namespace std;", sep = "\n")
+                    "using std::array;",
+                    "using std::vector;", sep = "\n")
   
-  sep <- "\n\n"
+  
+  return(c(prolog, includes, "\n\n", 'extern "C" {\n'))
+}
+
+
+
+#' Implement the ODE system for sundials::cvodes.
+#' 
+#' @param f Named character vector containing the right-hand sides of the ODE.
+#'   You may use the key word.
+#' @param variables Variables appearing on the ODE, \code{names(f)}.
+#' @param parameters Parameters appearing in the ODE.
+#' @return C++ source code as a character vector.
+#'   
+#' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
+sundialsODE <- function(f, variables, parameters) {
+  ## Header
+  odeHead <- paste("/** Derivatives (ODE system) **/",
+                    "array<vector<double>, 2> derivs(const double& t, const vector<double>& y,",
+                    "                                const vector<double>& p, const vector<double>& f) {",
+                    "    vector<double> ydot(y.size());", sep = "\n")
   
   
   ## ODE system
-  #### Return statement
-  retOde <- paste("    array<vector<double>, 2> output = {{ydot, ydot}};",
-                  "    return output;",
-                  "}", sep = "\n")
-  
-  #### Derivatives (ODE system)
-  derivHead <- paste('extern "C" {',
-                     "/** Derivatives (ODE system) **/",
-                     "array<vector<double>, 2> derivs(const double& t, const vector<double>& y,",
-                     "                                const vector<double>& p, const vector<double>& f) {",
-                     "    vector<double> ydot(y.size());", sep = "\n")
-  
   f <- cvodesSyntax(f, variables, parameters, forcings)
   dv <- length(variables)
   odeSystem <- paste0("    ydot[", 0:(dv - 1),"] = ", f,";")
   
   
-  ## Jacobian of the ODE system
-  #### Return statement
-  retJac <- paste("    return output;",
+  ## Return statement
+  ret <- paste("    array<vector<double>, 2> output = {{ydot, ydot}};",
+                  "    return output;",
                   "}", sep = "\n")
   
-  #### Jacobian
-  if (!is.null(jac)) {
-  JacHead <- paste("/** Jacobian of the ODE system) **/",
+  
+  #### Return entire program
+  return(c(odeHead, odeSystem, ret, "\n"))
+}
+
+
+
+#' Implement the Jacobian of the ODE system for sundials::cvodes.
+#' 
+#' @param f Named character vector containing the right-hand sides of the ODE.
+#'   You may use the key word.
+#' @param variables Variables appearing on the ODE, \code{names(f)}.
+#' @param parameters Parameters appearing in the ODE.
+#' @return C++ source code as a character vector.
+#'   
+#' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
+sundialsJac <- function(f, variables, parameters) {
+  jac  <- jacobianSymb(f)
+  
+  
+  ## Header
+  jacHead <- paste("/** Jacobian of the ODE system) **/",
                    "vector<double> jac_in_Cpp_stl(const double& t, const std::vector<double>& y, ",
                    "                              const std::vector<double>& p,",
                    "                              const std::vector<double>& f) {",
                    "    vector<double> output(y.size()*y.size());", sep = "\n")
   
+  
+  ## Jacobian of the ODE system
+  # On the cvodes side, the jacobian is filled up column by column which is in
+  # line with the format of jac
   jac <- cvodesSyntax(jac, variables, parameters, forcings)
+  not.zero.jac <- which(jac != "0")
   jacobian <- paste0("    output[", not.zero.jac - 1,"] = ", jac[not.zero.jac],";")
-  }
   
   
+  ## Return statement
+  ret <- paste("    return output;",
+               "}", sep = "\n")
   
-  ## Write C++ source file
-  #### Paste everything in one string 
-  program <- c(
-    # General
-    prolog, 
-    includes,
-    sep,
-    # ODE system
-    derivHead,
-    odeSystem,
-    retOde)
   
-  #### We provide the Jacobian
-  if (!is.null(jac)) {
-  program <- c(
-    program,
-    sep,
-    # Jacobian of the ODE system
-    JacHead,
-    jacobian,
-    retJac)
-  }
-  
-  cppFile <- file(filename, open = "w")
-  writeLines(c(program, "}"), cppFile)
-  close(cppFile)
+  #### Return entire program
+  return(c(jacHead, jacobian, ret, "\n"))
 }
 
 
@@ -644,7 +668,8 @@ odeC <- function(y, times, func, parms, ...) {
                      maxnonlin = 10,
                      maxconvfail = 10,
                      method = "bdf",
-                     jacobian = 0,
+                     jacobian = if (is.null(attr(func, "addressJac"))) FALSE
+                                else TRUE,
                      minimum = -1e-4,
                      positive = 1,
                      which_states = length(y),
@@ -653,6 +678,13 @@ odeC <- function(y, times, func, parms, ...) {
     
     userSettings <- intersect(names(settings), varnames)
     settings[userSettings] <- varargs[userSettings]
+    
+    # Check consistency of user provided jacobian.
+    if (settings["jacobian"] == TRUE ) {  
+      if (is.null(attr(func, "addressJac"))) {
+        stop("You said to provide the jacobian, but you did not.")
+      }
+    }
 
     
     # Call integrator
@@ -661,8 +693,8 @@ odeC <- function(y, times, func, parms, ...) {
                       parameters_ = parms,
                       forcings_data_ = list(cbind(1:10,1:10)),
                       settings = settings,
-                      model_ = attr(func, "address"),
-                      jacobian_ = attr(func, "address"))
+                      model_ = attr(func, "addressODE"),
+                      jacobian_ = attr(func, "addressJac"))
     outStates <- attr(func, "variables")[1:settings[["which_states"]]]
     print(c("time", outStates, paste0("obs", seq(settings[["which_observed"]]))))
     #colnames(out) <- c("time", outStates, paste0("obs", seq(settings[["which_observed"]])))
