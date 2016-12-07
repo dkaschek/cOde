@@ -673,7 +673,7 @@ odeC <- function(y, times, func, parms, ...) {
                      minimum = -1e-4,
                      positive = 1,
                      which_states = length(y),
-                     which_observed = integer(),
+                     which_observed = 0,
                      stability = TRUE)
     
     userSettings <- intersect(names(settings), varnames)
@@ -695,9 +695,13 @@ odeC <- function(y, times, func, parms, ...) {
                       settings = settings,
                       model_ = attr(func, "addressODE"),
                       jacobian_ = attr(func, "addressJac"))
-    outStates <- attr(func, "variables")[1:settings[["which_states"]]]
-    print(c("time", outStates, paste0("obs", seq(settings[["which_observed"]]))))
-    #colnames(out) <- c("time", outStates, paste0("obs", seq(settings[["which_observed"]])))
+    
+    
+    # Prepare return
+    outnames <- c("time",
+                  attr(func, "variables")[0:settings[["which_states"]]],
+                  make.unique(rep("obs", settings[["which_observed"]]), sep = ""))
+    colnames(out) <- outnames
 
     return(out)
   }
