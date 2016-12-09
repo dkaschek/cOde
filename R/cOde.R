@@ -380,7 +380,7 @@ funC <- function(f, forcings=NULL, outputs=NULL,
   attr(f, "fcontrol") <- fcontrol
   attr(f, "solver" ) <- solver
   attr(f, "addressODE") <- getNativeSymbolInfo("derivs", PACKAGE = dllname)$address
-  attr(f, "addressJac") <- if (jacobian != "none") getNativeSymbolInfo("jac_in_Cpp_stl", PACKAGE = dllname)$address
+  attr(f, "addressJac") <- if (jacobian != "none") getNativeSymbolInfo("jacobian", PACKAGE = dllname)$address
                            else NULL
   return(f)
 }
@@ -512,9 +512,9 @@ sundialsJac <- function(f, variables, parameters) {
   
   ## Header
   jacHead <- paste("/** Jacobian of the ODE system) **/",
-                   "vector<double> jac_in_Cpp_stl(const double& t, const std::vector<double>& y, ",
-                   "                              const std::vector<double>& p,",
-                   "                              const std::vector<double>& f) {",
+                   "vector<double> jacobian(const double& t, const std::vector<double>& y, ",
+                   "                        const std::vector<double>& p,",
+                   "                        const std::vector<double>& f) {",
                    "    vector<double> output(y.size()*y.size());", sep = "\n")
   
   
@@ -678,6 +678,7 @@ odeC <- function(y, times, func, parms, ...) {
     
     userSettings <- intersect(names(settings), varnames)
     settings[userSettings] <- varargs[userSettings]
+    print(settings)
     
     # Check consistency of user provided jacobian.
     if (settings["jacobian"] == TRUE ) {  
