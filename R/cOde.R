@@ -1,33 +1,46 @@
 #' Generate C code for a function and compile it
 #' 
-#' @param f Named character vector containing the right-hand sides of the ODE. You may use the key word
-#' \code{time} in your equations for non-autonomous ODEs. 
+#' @param f Named character vector containing the right-hand sides of the ODE.
+#'   You may use the key word \code{time} in your equations for non-autonomous
+#'   ODEs.
 #' @param forcings Character vector with the names of the forcings
-#' @param outputs Named character vector for additional output variables, 
-#' see arguments \code{nout} and \code{outnames} of \link[deSolve]{lsode}
-#' @param jacobian Character, either "none" (no jacobian is computed), "full" (full jacobian 
-#' is computed and written as a function into the C file) or "inz.lsodes" (only the non-zero elements
-#' of the jacobian are determined, see \link[deSolve]{lsodes})
-#' @param rootfunc Named character vector. The root function (see \link[deSolve]{lsoda}). Besides the
-#' variable names (\code{names(f)}) also other symbols are allowed that are treated like new
-#' parameters.
-#' @param boundary data.frame with columns name, yini, yend specifying the boundary condition set-up. NULL if not a boundary value problem
+#' @param fixed  character vector with the names of parameters (initial values
+#'   and dynamic) for which no sensitivities are required (will speed up the
+#'   integration).
+#' @param outputs Named character vector for additional output variables, see
+#'   arguments \code{nout} and \code{outnames} of \link[deSolve]{lsode}
+#' @param jacobian Character, either "none" (no jacobian is computed), "full"
+#'   (full jacobian is computed and written as a function into the C file) or
+#'   "inz.lsodes" (only the non-zero elements of the jacobian are determined,
+#'   see \link[deSolve]{lsodes})
+#' @param rootfunc Named character vector. The root function (see
+#'   \link[deSolve]{lsoda}). Besides the variable names (\code{names(f)}) also
+#'   other symbols are allowed that are treated like new parameters.
+#' @param boundary data.frame with columns name, yini, yend specifying the
+#'   boundary condition set-up. NULL if not a boundary value problem
 #' @param compile Logical. If FALSE, only the C file is written
-#' @param fcontrol Character, either \code{"nospline"} (default, forcings are handled by deSolve) or \code{"einspline"}
-#' (forcings are handled as splines within the C code based on the einspline library).
-#' @param nGridpoints Integer, defining the number of grid points between tmin and tmax where the ODE
-#' is computed in any case. Indicates also the number of spline nodes if \code{fcontrol = "einspline"}.
+#' @param fcontrol Character, either \code{"nospline"} (default, forcings are
+#'   handled by deSolve) or \code{"einspline"} (forcings are handled as splines
+#'   within the C code based on the einspline library).
+#' @param nGridpoints Integer, defining the number of grid points between tmin
+#'   and tmax where the ODE is computed in any case. Indicates also the number
+#'   of spline nodes if \code{fcontrol = "einspline"}.
 #' @param precision Numeric. Only used when \code{fcontrol = "einspline"}.
-#' @param modelname Character. The C file is generated in the working directory and is named <modelname>.c.
-#' If \code{NULL}, a random name starting with ".f" is chosen, i.e. the file is hidden on a UNIX system.
+#' @param modelname Character. The C file is generated in the working directory
+#'   and is named <modelname>.c. If \code{NULL}, a random name starting with
+#'   ".f" is chosen, i.e. the file is hidden on a UNIX system.
 #' @param verbose Print compiler output to R command line.
-#' @param solver Select the solver suite as either \code{deSolve} or \code{Sundials}. Defaults to \code{deSolve}.
-#' @details The function replaces variables by arrays \code{y[i]}, etc. and replaces "^" by pow() 
-#' in order to have the correct C syntax. The file name of the C-File is derived from \code{f}. 
-#' I.e. \code{funC(abc, ...} will generate a file abc.c in the current directory. 
-#' Currently, only explicit ODE specification is supported, i.e. you need to have the right-hand sides of the ODE.
-#' 
-#' @return the name of the generated shared object file together with a number of attributes
+#' @param solver Select the solver suite as either \code{deSolve} or
+#'   \code{Sundials}. Defaults to \code{deSolve}.
+#' @details The function replaces variables by arrays \code{y[i]}, etc. and
+#'   replaces "^" by pow() in order to have the correct C syntax. The file name
+#'   of the C-File is derived from \code{f}. I.e. \code{funC(abc, ...} will
+#'   generate a file abc.c in the current directory. Currently, only explicit
+#'   ODE specification is supported, i.e. you need to have the right-hand sides
+#'   of the ODE.
+#'   
+#' @return the name of the generated shared object file together with a number
+#'   of attributes
 #' @examples 
 #' \dontrun{
 #' # Exponential decay plus constant supply
@@ -47,11 +60,11 @@
 #' odeC(yini, times, func, parms)
 #' }
 #' @export
-funC <- function(f, forcings=NULL, outputs=NULL, 
+funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL, 
                  jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), 
-                 rootfunc = NULL, boundary= NULL, 
+                 rootfunc = NULL, boundary = NULL, 
                  compile = TRUE, fcontrol = c("nospline", "einspline"),
-                 nGridpoints = 500, precision=1e-5, modelname = NULL,
+                 nGridpoints = 500, precision = 1e-5, modelname = NULL,
                  verbose = FALSE, solver = c("deSolve", "Sundials")) {
   
   f <- unclass(f)
@@ -87,7 +100,6 @@ funC <- function(f, forcings=NULL, outputs=NULL,
   parameters <- symbols[!symbols%in%c(variables, forcings, names(constraints), names(rootfunc), "time")]
   jac <- NULL
   inz <- NULL
-  
   
   jacobian <- match.arg(jacobian)
   if(jacobian != "none") jac  <- jacobianSymb(f)
@@ -336,13 +348,29 @@ funC <- function(f, forcings=NULL, outputs=NULL,
   sink()
   
 
+  
   } else if (solver == "Sundials") {
-  ## ---- Sundials::cvodes: write code ----
+    ## ---- Sundials::cvodes: write code ----
+    # Construct sensitivity equations
+    fSens <- sensitivitiesSymb(f, 
+                               states = setdiff(variables, fixed), 
+                               parameters = setdiff(parameters, fixed), 
+                               inputs = forcings,
+                               reduce = TRUE)
+    variablesSens <- names(fSens)
+    symbolsSens <- getSymbols(c(fSens, rootfunc, constraints))
+    parametersSens <- symbolsSens[!symbolsSens %in% c(variablesSens, forcings, names(constraints), names(rootfunc), "time")]
+    
+    
     #### Assemble source code
-    program <- c(sundialsIncludes(), sundialsODE(f, variables, parameters))
+    program <- c(sundialsIncludes(),
+                 sundialsOde(f, variables, parameters, "dynamics"),
+                 sundialsOde(fSens, variablesSens, parametersSens, "sensitivities"))
     
     if (jacobian != "none") {
-      program <- c(program, sundialsJac(f, variables, parameters))
+      program <- c(program,
+                   sundialsJac(f, variables, parameters, "dynamicsJac"),
+                   sundialsJac(fSens, variablesSens, parametersSens, "sensitivitiesJac"))
     }
     
     
@@ -352,14 +380,14 @@ funC <- function(f, forcings=NULL, outputs=NULL,
     cppFile <- file(filename, open = "w")
     writeLines(c(program,
                  "}" # Matches extern "C" {
-                 ), cppFile)
+    ), cppFile)
     close(cppFile)
+    
   }
   
   
   ## ---- Compile and load shared object file ----
   if (compile) compileAndLoad(filename, dllname, fcontrol, verbose)
-  
   
   
   ## ----------- function return -----------
@@ -379,9 +407,17 @@ funC <- function(f, forcings=NULL, outputs=NULL,
   attr(f, "nGridpoints") <- nGridpoints
   attr(f, "fcontrol") <- fcontrol
   attr(f, "solver" ) <- solver
-  attr(f, "addressODE") <- getNativeSymbolInfo("derivs", PACKAGE = dllname)$address
-  attr(f, "addressJac") <- if (jacobian != "none") getNativeSymbolInfo("jacobian", PACKAGE = dllname)$address
-                           else NULL
+  
+  if (solver == "Sundials" && compile) {
+    attr(f, "equationsSens") <- fSens
+    attr(f, "variablesSens") <- variablesSens
+    attr(f, "parametersSens") <- parametersSens
+    attr(f, "adrDynamics") <- getNativeSymbolInfo("dynamics", PACKAGE = dllname)$address
+    attr(f, "adrSensitivies") <- getNativeSymbolInfo("sensitivities", PACKAGE = dllname)$address
+    attr(f, "adrDynamicsJac") <- if (jacobian != "none") getNativeSymbolInfo("dynamicsJac", PACKAGE = dllname)$address else NULL
+    attr(f, "adrSensitivitiesJac") <- if (jacobian != "none") getNativeSymbolInfo("sensitivitiesJac", PACKAGE = dllname)$address else NULL
+  }
+  
   return(f)
 }
 
@@ -468,13 +504,14 @@ sundialsIncludes <- function() {
 #'   You may use the key word.
 #' @param variables Variables appearing on the ODE, \code{names(f)}.
 #' @param parameters Parameters appearing in the ODE.
+#' @param funcName Name of the returned function.
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-sundialsODE <- function(f, variables, parameters) {
+sundialsOde <- function(f, variables, parameters, funcName) {
   ## Header
-  odeHead <- paste("/** Derivatives (ODE system) **/",
-                    "array<vector<double>, 2> derivs(const double& t, const vector<double>& y,",
+  odeHead <- paste("/** Derivatives **/",
+                    paste0("array<vector<double>, 2> ", funcName, "(const double& t, const vector<double>& y,"),
                     "                                const vector<double>& p, const vector<double>& f) {",
                     "    vector<double> ydot(y.size());", sep = "\n")
   
@@ -503,16 +540,17 @@ sundialsODE <- function(f, variables, parameters) {
 #'   You may use the key word.
 #' @param variables Variables appearing on the ODE, \code{names(f)}.
 #' @param parameters Parameters appearing in the ODE.
+#' @param funcName Name of the returned function.
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-sundialsJac <- function(f, variables, parameters) {
+sundialsJac <- function(f, variables, parameters, funcName) {
   jac  <- jacobianSymb(f)
   
   
   ## Header
-  jacHead <- paste("/** Jacobian of the ODE system) **/",
-                   "vector<double> jacobian(const double& t, const std::vector<double>& y, ",
+  jacHead <- paste("/** Jacobian **/",
+                   paste0("vector<double> ", funcName, "(const double& t, const std::vector<double>& y, "),
                    "                        const std::vector<double>& p,",
                    "                        const std::vector<double>& f) {",
                    "    vector<double> output(y.size()*y.size());", sep = "\n")
@@ -630,7 +668,7 @@ setForcings <- function(func, forcings) {
 #' @param y named vector of type numeric. Initial values for the integration
 #' @param times vector of type numeric. Integration times
 #' @param func return value from funC()
-#' @param parms named vector of type numeric. 
+#' @param parms named vector of type numeric.
 #' @param ... further arguments going to \code{ode()}
 #' @details See deSolve-package for a full description of possible arguments
 #' @return matrix with times and states
@@ -641,13 +679,10 @@ odeC <- function(y, times, func, parms, ...) {
   # Sundials::cvodes
   if (attr(func, "solver") == "Sundials") {
     
-    # Check input: states initials and parameters values
-    y <- y[attr(func, "variables")]
     if (any(is.na(y))) {
       stop("At least one state is not provided with an initial value.")
     }
-    
-    parms <- parms[attr(func, "parameters")]
+
     if (any(is.na(parms))) {
       stop("At least one parameter value is unspecified.")
     }
@@ -668,21 +703,28 @@ odeC <- function(y, times, func, parms, ...) {
                      maxnonlin = 10,
                      maxconvfail = 10,
                      method = "bdf",
-                     jacobian = if (is.null(attr(func, "addressJac"))) FALSE
+                     jacobian = if (is.null(attr(func, "adrDynamicsJac"))) FALSE
                                 else TRUE,
                      minimum = -1e-4,
                      positive = 1,
                      which_states = length(y),
                      which_observed = 0,
-                     stability = TRUE)
+                     stability = TRUE,
+                     sensitivities = FALSE)
     
     userSettings <- intersect(names(settings), varnames)
     settings[userSettings] <- varargs[userSettings]
-    print(settings)
+
     
-    # Check consistency of user provided jacobian.
+    # Check if a model is present
+    if (is.null(attr(func, "adrDynamics"))) {
+      stop("No model provided. Create one by calling odemodel().")
+    }
+    
+    
+    # Check consistency of user setting and user provided jacobian.
     if (settings["jacobian"] == TRUE ) {  
-      if (is.null(attr(func, "addressJac"))) {
+      if (is.null(attr(func, "adrDynamicsJac"))) {
         stop("You said to provide the jacobian, but you did not.")
       }
     }
@@ -690,12 +732,12 @@ odeC <- function(y, times, func, parms, ...) {
     
     # Call integrator
     out = wrap_cvodes(times = times,
-                      states_ = y,
-                      parameters_ = parms,
+                      states_ = y[attr(func, "variables")],
+                      parameters_ = parms[attr(func, "parameters")],
                       forcings_data_ = list(cbind(1:10,1:10)),
                       settings = settings,
-                      model_ = attr(func, "addressODE"),
-                      jacobian_ = attr(func, "addressJac"))
+                      model_ = attr(func, "adrDynamics"),
+                      jacobian_ = attr(func, "adrDynamicsJac"))
     
     
     # Prepare return
