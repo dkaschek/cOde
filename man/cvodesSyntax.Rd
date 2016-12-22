@@ -5,7 +5,8 @@
 \title{Sundials::cvodes: Replace powers and symbols to get correct C++ syntax for
 cvodes.}
 \usage{
-cvodesSyntax(f, variables, parameters, forcings)
+cvodesSyntax(f, variables, parameters, varSym = "y", parSym = "p",
+  forcings = NULL)
 }
 \arguments{
 \item{f}{Named character vector.}
@@ -13,6 +14,10 @@ cvodesSyntax(f, variables, parameters, forcings)
 \item{variables}{Variables appearing on the ODE, \code{names(f)}.}
 
 \item{parameters}{Parameters appearing in the ODE.}
+
+\item{varSym}{Symbol of the variables to appear in the source code.}
+
+\item{parSym}{Symbol of the parameter to appear in the source code.}
 
 \item{forcings}{Inhomogenity of the ODE. Currently not used.}
 }

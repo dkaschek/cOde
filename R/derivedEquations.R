@@ -48,7 +48,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   mygridP <- expand.grid.alt(variables, pars)
   sensParVariablesY0 <- apply(mygridY0, 1, paste, collapse = ".")
   sensParVariablesP <- apply(mygridP, 1, paste, collapse = ".")
-  
+
   # Write sensitivity equations in matrix form
   Dy0y <- matrix(sensParVariablesY0, ncol = ds, nrow = dv)
   Dpy <- matrix(sensParVariablesP, ncol = dp, nrow = dv)
@@ -80,6 +80,22 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   ones <- which(apply(newvariables.grid, 1, function(row) row[1] == row[2]))
   initials[newvariables[ones]] <- 1
   
+  
+  # Construct index vector for states and parameters indicating non-vanishing
+  # sensitivity equations.
+  # States
+  hasSens.stateNames <- intersect(sensParVariablesY0, names(initials))
+  hasSens.StatesIdx <- rep(FALSE, length(sensParVariablesY0))
+  names(hasSens.StatesIdx) <- sensParVariablesY0
+  hasSens.StatesIdx[hasSens.stateNames] <- TRUE
+  
+  # Parameters
+  hasSens.parameterNames <- intersect(sensParVariablesP, names(initials))
+  hasSens.ParameterIdx <- rep(FALSE, length(sensParVariablesP))
+  names(hasSens.ParameterIdx) <- sensParVariablesP
+  hasSens.ParameterIdx[hasSens.parameterNames] <- TRUE
+  
+  
   # Compute wrss
   pars <- c(pars, states)
   
@@ -102,6 +118,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   attr(newfun, "outputs") <- structure(rep(0, length(which(is.zero.sens))), names = newvariables[is.zero.sens])
   attr(newfun, "forcings") <- c(statesD, weightsD)
   attr(newfun, "yini") <- initials
+  attr(newfun, "hasSensStatesIdx") <- hasSens.StatesIdx
+  attr(newfun, "hasSensParametersIdx") <- hasSens.ParameterIdx
     
   
   return(newfun)

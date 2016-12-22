@@ -358,19 +358,16 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
                                inputs = forcings,
                                reduce = TRUE)
     variablesSens <- names(fSens)
-    symbolsSens <- getSymbols(c(fSens, rootfunc, constraints))
-    parametersSens <- symbolsSens[!symbolsSens %in% c(variablesSens, forcings, names(constraints), names(rootfunc), "time")]
-    
+
     
     #### Assemble source code
     program <- c(sundialsIncludes(),
-                 sundialsOde(f, variables, parameters, "dynamics"),
-                 sundialsOde(fSens, variablesSens, parametersSens, "sensitivities"))
+                 sundialsOde(f, variables, parameters),
+                 sundialsSensOde(fSens, variables, variablesSens, parameters))
     
     if (jacobian != "none") {
       program <- c(program,
-                   sundialsJac(f, variables, parameters, "dynamicsJac"),
-                   sundialsJac(fSens, variablesSens, parametersSens, "sensitivitiesJac"))
+                   sundialsJac(f, variables, parameters))
     }
     
     
@@ -411,11 +408,13 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   if (solver == "Sundials" && compile) {
     attr(f, "equationsSens") <- fSens
     attr(f, "variablesSens") <- variablesSens
-    attr(f, "parametersSens") <- parametersSens
     attr(f, "adrDynamics") <- getNativeSymbolInfo("dynamics", PACKAGE = dllname)$address
-    attr(f, "adrSensitivies") <- getNativeSymbolInfo("sensitivities", PACKAGE = dllname)$address
+    attr(f, "adrSensitivities") <- getNativeSymbolInfo("sensitivities", PACKAGE = dllname)$address
     attr(f, "adrDynamicsJac") <- if (jacobian != "none") getNativeSymbolInfo("dynamicsJac", PACKAGE = dllname)$address else NULL
-    attr(f, "adrSensitivitiesJac") <- if (jacobian != "none") getNativeSymbolInfo("sensitivitiesJac", PACKAGE = dllname)$address else NULL
+    # Attribute deriv is used in odeC to decide if sensitivities are to be
+    # integrated or not. As f is stored in func by odemodel(), deriv is set
+    # to false. odemodel() stores this f also in extended with deriv = TRUE.
+    attr(f, "deriv") <- FALSE 
   }
   
   return(f)
@@ -458,14 +457,16 @@ compileAndLoad <- function(filename, dllname, fcontrol, verbose) {
 #' @param f Named character vector.
 #' @param variables Variables appearing on the ODE, \code{names(f)}.
 #' @param parameters Parameters appearing in the ODE.
+#' @param varSym Symbol of the variables to appear in the source code.
+#' @param parSym Symbol of the parameter to appear in the source code.
 #' @param forcings Inhomogenity of the ODE. Currently not used.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-cvodesSyntax <- function(f, variables, parameters, forcings) {
+cvodesSyntax <- function(f, variables, parameters, varSym = "y", parSym = "p", forcings = NULL) {
   f <- replaceOperation("^", "pow", f)
   f <- replaceOperation("**", "pow", f)
-  f <- replaceSymbols(variables, paste0("y[", 1:length(variables) - 1, "]"), f)
-  f <- replaceSymbols(parameters, paste0("p[", 1:length(parameters) - 1, "]"), f)
+  f <- replaceSymbols(variables, paste0(varSym, "[", 1:length(variables) - 1, "]"), f)
+  f <- replaceSymbols(parameters, paste0(parSym, "[", 1:length(parameters) - 1, "]"), f)
   return(f)
 }
 
@@ -508,17 +509,18 @@ sundialsIncludes <- function() {
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-sundialsOde <- function(f, variables, parameters, funcName) {
+sundialsOde <- function(f, variables, parameters) {
   ## Header
   odeHead <- paste("/** Derivatives **/",
-                    paste0("array<vector<double>, 2> ", funcName, "(const double& t, const vector<double>& y,"),
+                    paste0("array<vector<double>, 2> dynamics(const double& t, const vector<double>& y,"),
                     "                                const vector<double>& p, const vector<double>& f) {",
                     "    vector<double> ydot(y.size());", sep = "\n")
   
   
   ## ODE system
-  f <- cvodesSyntax(f, variables, parameters, forcings)
+  f <- cvodesSyntax(f, variables, parameters)
   dv <- length(variables)
+
   odeSystem <- paste0("    ydot[", 0:(dv - 1),"] = ", f,";")
   
   
@@ -534,6 +536,45 @@ sundialsOde <- function(f, variables, parameters, funcName) {
 
 
 
+#' Implement sensitivities for an ODE system, sundials::cvodes.
+#' 
+#' @param f Named character vector containing the right-hand sides of the ODE. 
+#'   You may use the key word.
+#' @param variablesOde Variables appearing on the ODE of the dynamic system.
+#' @param variablesSens Variables appearing on the ODE of the sensitivities of
+#'   the dynamic system.
+#' @param parameters Parameters appearing in the ODE.
+#' @return C++ source code as a character vector.
+#'   
+#' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
+sundialsSensOde <- function(f, variablesOde, variablesSens, parameters) {
+  ## Header
+  odeHead <- paste("/** Derivatives of sensitivities **/",
+                   "vector<double> sensitivities (const double& t,",
+                   "                              const vector<double>& y, const vector<double>& yS,",
+                   "                              const vector<double>& p, const vector<double>& f) {",
+                   "    vector<double> ySdot(y.size() * (y.size() + p.size()));", sep = "\n")
+  
+  
+  ## Sensitivity ODE system
+  f <- cvodesSyntax(f, variablesOde, parameters)
+  f <- cvodesSyntax(f, variablesSens, parameters, "yS")
+  hasSens.idx <- c(attr(f, "hasSensStatesIdx"), attr(f, "hasSensParametersIdx"))
+  hasSens.position <- (1:length(hasSens.idx))[hasSens.idx]
+  sensOde <- paste0("    ySdot[", hasSens.position - 1,"] = ", f,";")
+  
+  
+  ## Return statement
+  ret <- paste("    return ySdot;",
+               "}", sep = "\n")
+  
+  
+  #### Return entire program
+  return(c(odeHead, sensOde, ret, "\n"))
+}
+
+
+
 #' Implement the Jacobian of the ODE system for sundials::cvodes.
 #' 
 #' @param f Named character vector containing the right-hand sides of the ODE.
@@ -544,28 +585,26 @@ sundialsOde <- function(f, variables, parameters, funcName) {
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-sundialsJac <- function(f, variables, parameters, funcName) {
-  jac  <- jacobianSymb(f)
-  
-  
+sundialsJac <- function(f, variables, parameters) {
   ## Header
   jacHead <- paste("/** Jacobian **/",
-                   paste0("vector<double> ", funcName, "(const double& t, const std::vector<double>& y, "),
+                   paste0("vector<double> dynamicsJac(const double& t, const std::vector<double>& y, "),
                    "                        const std::vector<double>& p,",
                    "                        const std::vector<double>& f) {",
-                   "    vector<double> output(y.size()*y.size());", sep = "\n")
+                   "    vector<double> yJac(y.size()*y.size());", sep = "\n")
   
   
   ## Jacobian of the ODE system
   # On the cvodes side, the jacobian is filled up column by column which is in
   # line with the format of jac
-  jac <- cvodesSyntax(jac, variables, parameters, forcings)
+  jac  <- jacobianSymb(f)
+  jac <- cvodesSyntax(jac, variables, parameters)
   not.zero.jac <- which(jac != "0")
-  jacobian <- paste0("    output[", not.zero.jac - 1,"] = ", jac[not.zero.jac],";")
+  jacobian <- paste0("    yJac[", not.zero.jac - 1,"] = ", jac[not.zero.jac],";")
   
   
   ## Return statement
-  ret <- paste("    return output;",
+  ret <- paste("    return yJac;",
                "}", sep = "\n")
   
   
@@ -687,7 +726,7 @@ odeC <- function(y, times, func, parms, ...) {
       stop("At least one parameter value is unspecified.")
     }
   
-    
+
     # Extract cvodes settings from ...
     varargs <- list(...)
     varnames <- names(varargs)
@@ -707,10 +746,11 @@ odeC <- function(y, times, func, parms, ...) {
                                 else TRUE,
                      minimum = -1e-4,
                      positive = 1,
-                     which_states = length(y),
+                     which_states = length(attr(func, "equations")),
                      which_observed = 0,
                      stability = TRUE,
-                     sensitivities = FALSE)
+                     sensitivities = if (attr(func, "deriv")) TRUE else FALSE
+                     )
     
     userSettings <- intersect(names(settings), varnames)
     settings[userSettings] <- varargs[userSettings]
@@ -728,18 +768,42 @@ odeC <- function(y, times, func, parms, ...) {
         stop("You said to provide the jacobian, but you did not.")
       }
     }
-
+    
+    
+    # Check consistency of user setting and user provided sensitivities.
+    if (settings["sensitivities"] == TRUE ) {  
+      if (is.null(attr(func, "adrSensitivities"))) {
+        stop("You said to provide sensitivities, but you did not.")
+      }
+    }
+    
+    
+    # Setup sensitivities
+    # This is a pain, as deSolve and Sundials have different approaches.
+    # While the parameter y of odeC seems to provied initals for sensitivities,
+    # for Sundials they are not usefull, as only initials for sensitivities are
+    # reported which are not reduced by reduceSensitivities. Therefore, we have
+    # to construct from scratch.
+    initSens <- NULL
+    if (settings["sensitivities"] == TRUE) {
+      nStates <- length(attr(func, "equations"))
+      nPars <- length(parms)
+      initSens <- c(diag(nStates), matrix(0, nStates, nPars))
+    }
+    
     
     # Call integrator
     out = wrap_cvodes(times = times,
-                      states_ = y[attr(func, "variables")],
+                      states_ = y[names(attr(func, "equations"))],
                       parameters_ = parms[attr(func, "parameters")],
+                      initSens_ = initSens,
                       forcings_data_ = list(cbind(1:10,1:10)),
                       settings = settings,
                       model_ = attr(func, "adrDynamics"),
-                      jacobian_ = attr(func, "adrDynamicsJac"))
-    
-    
+                      jacobian_ = attr(func, "adrDynamicsJac"),
+                      sens_ = attr(func, "adrSensitivities"))
+
+
     # Prepare return
     outnames <- c("time",
                   attr(func, "variables")[0:settings[["which_states"]]],
@@ -749,6 +813,7 @@ odeC <- function(y, times, func, parms, ...) {
     return(out)
   }
   
+  # deSolve
   nGridpoints <- attr(func, "nGridpoints")
   times.inner <- seq(min(c(times, 0)), max(times), len=nGridpoints)
   times.inner <- sort(unique(c(times, times.inner)))
