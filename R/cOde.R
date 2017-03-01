@@ -805,9 +805,14 @@ odeC <- function(y, times, func, parms, ...) {
 
 
     # Prepare return
+    whichStates <- settings[["which_states"]]
+    whichObserved <- settings[["which_observed"]]
     outnames <- c("time",
-                  attr(func, "variables")[0:settings[["which_states"]]],
-                  make.unique(rep("obs", settings[["which_observed"]]), sep = ""))
+                  attr(func, "variables")[0:whichStates],
+                  make.unique(rep("obs", whichObserved), sep = ""))
+    if (settings["sensitivities"] == TRUE) {
+      outnames <- c(outnames, attr(func, "variables")[-(1:whichStates + whichObserved)])
+    }
     colnames(out) <- outnames
 
     return(out)
