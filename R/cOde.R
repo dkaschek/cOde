@@ -552,7 +552,7 @@ sundialsSensOde <- function(f, variablesOde, variablesSens, parameters) {
   odeHead <- paste("/** Derivatives of sensitivities **/",
                    "vector<double> sensitivities (const double& t,",
                    "                              const vector<double>& y, const vector<double>& yS,",
-                   "                              const vector<double>& p, const vector<double>& f) {",
+                   "                              const vector<double>& p) {",
                    "    vector<double> ySdot(y.size() * (y.size() + p.size()));", sep = "\n")
   
   
