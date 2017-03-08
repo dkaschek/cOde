@@ -356,7 +356,7 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
                                states = setdiff(variables, fixed), 
                                parameters = setdiff(parameters, fixed), 
                                inputs = forcings,
-                               reduce = TRUE)
+                               reduce = FALSE)
     variablesSens <- names(fSens)
 
     
@@ -512,7 +512,7 @@ sundialsIncludes <- function() {
 sundialsOde <- function(f, variables, parameters) {
   ## Header
   odeHead <- paste("/** Derivatives **/",
-                    paste0("array<vector<double>, 2> dynamics(const double& t, const vector<double>& y,"),
+                    paste0("array<vector<double>, 2> dynamics(const double& time, const vector<double>& y,"),
                     "                                const vector<double>& p, const vector<double>& f) {",
                     "    vector<double> ydot(y.size());", sep = "\n")
   
@@ -550,7 +550,7 @@ sundialsOde <- function(f, variables, parameters) {
 sundialsSensOde <- function(f, variablesOde, variablesSens, parameters) {
   ## Header
   odeHead <- paste("/** Derivatives of sensitivities **/",
-                   "vector<double> sensitivities (const double& t,",
+                   "vector<double> sensitivities (const double& time,",
                    "                              const vector<double>& y, const vector<double>& yS,",
                    "                              const vector<double>& p) {",
                    "    vector<double> ySdot(y.size() * (y.size() + p.size()));", sep = "\n")
@@ -588,7 +588,7 @@ sundialsSensOde <- function(f, variablesOde, variablesSens, parameters) {
 sundialsJac <- function(f, variables, parameters) {
   ## Header
   jacHead <- paste("/** Jacobian **/",
-                   paste0("vector<double> dynamicsJac(const double& t, const std::vector<double>& y, "),
+                   paste0("vector<double> dynamicsJac(const double& time, const std::vector<double>& y, "),
                    "                        const std::vector<double>& p,",
                    "                        const std::vector<double>& f) {",
                    "    vector<double> yJac(y.size()*y.size());", sep = "\n")
