@@ -725,11 +725,26 @@ odeC <- function(y, times, func, parms, ...) {
     if (any(is.na(parms))) {
       stop("At least one parameter value is unspecified.")
     }
-  
+    
 
     # Extract cvodes settings from ...
     varargs <- list(...)
     varnames <- names(varargs)
+    
+    
+    # Handle events
+    if (all(varnames != "events")) {
+      events <- data.frame()
+    }
+    else {
+      events <- varargs$events$data
+      # On the C++ side, we can't work with species names, only with their
+      # position in the systems of odes.
+      events$var <- match(events$var, names(y)) - 1
+      methods <- c("replace", "add", "multiply")
+      events$method <- match(events$method, methods)
+    }
+    
     
     settings <- list(rtol = 1e-6,
                      atol = 1e-6,
@@ -798,6 +813,7 @@ odeC <- function(y, times, func, parms, ...) {
                       parameters_ = parms[attr(func, "parameters")],
                       initSens_ = initSens,
                       forcings_data_ = list(cbind(1:10,1:10)),
+                      events_ = events,
                       settings = settings,
                       model_ = attr(func, "adrDynamics"),
                       jacobian_ = attr(func, "adrDynamicsJac"),
