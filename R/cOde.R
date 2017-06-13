@@ -512,8 +512,8 @@ sundialsIncludes <- function() {
 sundialsOde <- function(f, variables, parameters) {
   ## Header
   odeHead <- paste("/** Derivatives **/",
-                    paste0("array<vector<double>, 2> dynamics(const double& time, const vector<double>& y,"),
-                    "                                const vector<double>& p, const vector<double>& f) {",
+                    paste0("vector<double> dynamics(const double& time, const vector<double>& y,"),
+                    "                               const vector<double>& p, const vector<double>& f) {",
                     "    vector<double> ydot(y.size());", sep = "\n")
   
   
@@ -528,6 +528,8 @@ sundialsOde <- function(f, variables, parameters) {
   ret <- paste("    array<vector<double>, 2> output = {{ydot, ydot}};",
                   "    return output;",
                   "}", sep = "\n")
+  ret <- paste("    return ydot;",
+               "}", sep = "\n")
   
   
   #### Return entire program
@@ -766,7 +768,7 @@ odeC <- function(y, times, func, parms, ...) {
                      stability = TRUE,
                      sensitivities = if (attr(func, "deriv")) TRUE else FALSE
                      )
-    
+
     userSettings <- intersect(names(settings), varnames)
     settings[userSettings] <- varargs[userSettings]
 
@@ -812,7 +814,6 @@ odeC <- function(y, times, func, parms, ...) {
                       states_ = y[names(attr(func, "equations"))],
                       parameters_ = parms[attr(func, "parameters")],
                       initSens_ = initSens,
-                      forcings_data_ = list(cbind(1:10,1:10)),
                       events_ = events,
                       settings = settings,
                       model_ = attr(func, "adrDynamics"),
