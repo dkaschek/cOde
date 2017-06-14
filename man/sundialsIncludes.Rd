@@ -15,4 +15,3 @@ Infos and includes for sundials::cvodes C++ code: ODE, Jacobian.
 \author{
 Wolfgang Mader, \email{Wolfgang.Mader@fdm.uni-freiburg.de}
 }
-

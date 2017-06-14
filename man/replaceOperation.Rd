@@ -22,4 +22,3 @@ Replace a binary operator in a string by a function
 \examples{
 replaceOperation("^", "pow", "(x^2 + y^2)^.5")
 }
-

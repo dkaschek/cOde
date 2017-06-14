@@ -23,4 +23,3 @@ Daniel Kaschek, \email{daniel.kaschek@physik.uni-freiburg.de}
 
 Wolfgang Mader, \email{Wolfgang.Mader@fdm.uni-freiburg.de}
 }
-

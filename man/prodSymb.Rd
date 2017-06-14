@@ -17,4 +17,3 @@ Matrix of type character, the matrix product of M and N
 \description{
 Compute matrix product symbolically
 }
-

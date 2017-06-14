@@ -22,4 +22,3 @@ Compute Jacobian of a function symbolically
 jacobianSymb(c(A="A*B", B="A+B"))
 jacobianSymb(c(x="A*B", y="A+B"), c("A", "B"))
 }
-

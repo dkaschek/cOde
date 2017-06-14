@@ -92,4 +92,3 @@ times <- seq(0, 10, len = 100)
 odeC(yini, times, func, parms)
 }
 }
-

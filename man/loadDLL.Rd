@@ -18,4 +18,3 @@ Dynamically load DLL with automatic unloading of conflicting DLLs
 If the C function name is already part of another loaded DLL, the corresponding DLL is
 unloaded and the desired func DLL is loaded instead.
 }
-

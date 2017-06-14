@@ -20,4 +20,3 @@ Get symbols from a character
 \examples{
 getSymbols(c("A*AB+B^2"))
 }
-

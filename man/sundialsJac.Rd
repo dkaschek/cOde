@@ -25,4 +25,3 @@ Implement the Jacobian of the ODE system for sundials::cvodes.
 \author{
 Wolfgang Mader, \email{Wolfgang.Mader@fdm.uni-freiburg.de}
 }
-
