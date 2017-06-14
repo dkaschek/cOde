@@ -1,0 +1,22 @@
+PKG_CXXFLAGS= -I../inst/include/ -I../inst/include/solver/
+PKG_CFLAGS= -I../inst/include/ -I../inst/include/solver/
+CXX_STD = CXX11
+
+SUNDIALSOBJECTS=\
+./solver/cvodes/cvodes.o \
+./solver/cvodes/cvodea.o \
+./solver/cvodes/cvodea_io.o \
+./solver/cvodes/cvodes_direct.o \
+./solver/cvodes/cvodes_dense.o \
+./solver/cvodes/cvodes_io.o \
+./solver/sundials/sundials_direct.o \
+./solver/sundials/sundials_dense.o \
+./solver/sundials/sundials_math.o \
+./solver/sundials/sundials_nvector.o \
+./solver/nvec_ser/nvector_serial.o
+
+WRAPOBJECTS= cvode.o
+
+PKGOBJECTS= RcppExports.o
+
+OBJECTS= $(WRAPOBJECTS) $(PKGOBJECTS) $(SUNDIALSOBJECTS)
