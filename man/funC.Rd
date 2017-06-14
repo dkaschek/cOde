@@ -4,57 +4,74 @@
 \alias{funC}
 \title{Generate C code for a function and compile it}
 \usage{
-funC(f, forcings = NULL, outputs = NULL, jacobian = c("none", "full",
-  "inz.lsodes", "jacvec.lsodes"), rootfunc = NULL, boundary = NULL,
-  compile = TRUE, fcontrol = c("nospline", "einspline"),
-  nGridpoints = 500, precision = 1e-05, modelname = NULL,
-  verbose = FALSE)
+funC(f, forcings = NULL, fixed = NULL, outputs = NULL,
+  jacobian = c("none", "full", "inz.lsodes", "jacvec.lsodes"),
+  rootfunc = NULL, boundary = NULL, compile = TRUE,
+  fcontrol = c("nospline", "einspline"), nGridpoints = 500,
+  precision = 1e-05, modelname = NULL, verbose = FALSE,
+  solver = c("deSolve", "Sundials"))
 }
 \arguments{
-\item{f}{Named character vector containing the right-hand sides of the ODE. You may use the key word
-\code{time} in your equations for non-autonomous ODEs.}
+\item{f}{Named character vector containing the right-hand sides of the ODE.
+You may use the key word \code{time} in your equations for non-autonomous
+ODEs.}
 
 \item{forcings}{Character vector with the names of the forcings}
 
-\item{outputs}{Named character vector for additional output variables, 
-see arguments \code{nout} and \code{outnames} of \link[deSolve]{lsode}}
+\item{fixed}{character vector with the names of parameters (initial values
+and dynamic) for which no sensitivities are required (will speed up the
+integration).}
 
-\item{jacobian}{Character, either "none" (no jacobian is computed), "full" (full jacobian 
-is computed and written as a function into the C file) or "inz.lsodes" (only the non-zero elements
-of the jacobian are determined, see \link[deSolve]{lsodes})}
+\item{outputs}{Named character vector for additional output variables, see
+arguments \code{nout} and \code{outnames} of \link[deSolve]{lsode}}
 
-\item{rootfunc}{Named character vector. The root function (see \link[deSolve]{lsoda}). Besides the
-variable names (\code{names(f)}) also other symbols are allowed that are treated like new
-parameters.}
+\item{jacobian}{Character, either "none" (no jacobian is computed), "full"
+(full jacobian is computed and written as a function into the C file) or
+"inz.lsodes" (only the non-zero elements of the jacobian are determined,
+see \link[deSolve]{lsodes})}
 
-\item{boundary}{data.frame with columns name, yini, yend specifying the boundary condition set-up. NULL if not a boundary value problem}
+\item{rootfunc}{Named character vector. The root function (see
+\link[deSolve]{lsoda}). Besides the variable names (\code{names(f)}) also
+other symbols are allowed that are treated like new parameters.}
+
+\item{boundary}{data.frame with columns name, yini, yend specifying the
+boundary condition set-up. NULL if not a boundary value problem}
 
 \item{compile}{Logical. If FALSE, only the C file is written}
 
-\item{fcontrol}{Character, either \code{"nospline"} (default, forcings are handled by deSolve) or \code{"einspline"}
-(forcings are handled as splines within the C code based on the einspline library).}
+\item{fcontrol}{Character, either \code{"nospline"} (default, forcings are
+handled by deSolve) or \code{"einspline"} (forcings are handled as splines
+within the C code based on the einspline library).}
 
-\item{nGridpoints}{Integer, defining the number of grid points between tmin and tmax where the ODE
-is computed in any case. Indicates also the number of spline nodes if \code{fcontrol = "einspline"}.}
+\item{nGridpoints}{Integer, defining the number of grid points between tmin
+and tmax where the ODE is computed in any case. Indicates also the number
+of spline nodes if \code{fcontrol = "einspline"}.}
 
 \item{precision}{Numeric. Only used when \code{fcontrol = "einspline"}.}
 
-\item{modelname}{Character. The C file is generated in the working directory and is named <modelname>.c.
-If \code{NULL}, a random name starting with ".f" is chosen, i.e. the file is hidden on a UNIX system.}
+\item{modelname}{Character. The C file is generated in the working directory
+and is named <modelname>.c. If \code{NULL}, a random name starting with
+".f" is chosen, i.e. the file is hidden on a UNIX system.}
 
 \item{verbose}{Print compiler output to R command line.}
+
+\item{solver}{Select the solver suite as either \code{deSolve} or
+\code{Sundials}. Defaults to \code{deSolve}.}
 }
 \value{
-the name of the generated shared object file together with a number of attributes
+the name of the generated shared object file together with a number
+  of attributes
 }
 \description{
 Generate C code for a function and compile it
 }
 \details{
-The function replaces variables by arrays \code{y[i]}, etc. and replaces "^" by pow() 
-in order to have the correct C syntax. The file name of the C-File is derived from \code{f}. 
-I.e. \code{funC(abc, ...} will generate a file abc.c in the current directory. 
-Currently, only explicit ODE specification is supported, i.e. you need to have the right-hand sides of the ODE.
+The function replaces variables by arrays \code{y[i]}, etc. and
+  replaces "^" by pow() in order to have the correct C syntax. The file name
+  of the C-File is derived from \code{f}. I.e. \code{funC(abc, ...} will
+  generate a file abc.c in the current directory. Currently, only explicit
+  ODE specification is supported, i.e. you need to have the right-hand sides
+  of the ODE.
 }
 \examples{
 \dontrun{
@@ -75,4 +92,3 @@ times <- seq(0, 10, len = 100)
 odeC(yini, times, func, parms)
 }
 }
-

@@ -3,11 +3,15 @@ Type: Package
 Title: Automated C Code Generation for Use with the 'deSolve' and 'bvpSolve'
     Packages
 Version: 0.2.2
+NeedsCompilation: yes
 Depends:
     R (>= 3.0)
 Suggests:
     deSolve,
     bvpSolve
+Imports: Rcpp (>= 0.11.3)
+LinkingTo: Rcpp, RcppArmadillo
+SystemRequirements: C++11
 Date: 2016-05-11
 Author: Daniel Kaschek
 Maintainer: Daniel Kaschek <daniel.kaschek@physik.uni-freiburg.de>
@@ -17,4 +21,4 @@ Description: Generates all necessary C functions allowing the user to work with
     Jacobians, sensitivity equations and adjoint sensitivities being the basis for
     sensitivity analysis.
 License: GPL (>= 2)
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1

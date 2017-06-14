@@ -22,4 +22,3 @@ reduceSensitivities
 Given the set \code{vanishing} of vanishing sensitivities, the algorithm
 determins sensitivities that vanish as a consequence of the first set.
 }
-

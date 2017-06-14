@@ -205,4 +205,3 @@ legend("topleft", legend = names(grad), lty=1, col=1:5)
 
 }
 }
-

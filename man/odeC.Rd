@@ -81,4 +81,3 @@ legend("topright", legend = c("O3", "O2", "O"), lty=1, col=1:3)
 
 }
 }
-

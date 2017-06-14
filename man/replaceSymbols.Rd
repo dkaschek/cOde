@@ -22,4 +22,3 @@ Replace symbols in a character vector by other symbols
 \examples{
 replaceSymbols(c("A", "B"), c("x[0]", "x[1]"), c("A*B", "A+B+C"))
 }
-

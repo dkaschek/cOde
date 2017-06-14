@@ -17,4 +17,3 @@ Matrix of type character, the matrix sum of M and N
 \description{
 Compute matrix sumSymbolically
 }
-

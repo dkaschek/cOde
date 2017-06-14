@@ -29,4 +29,3 @@ forcData <- rbind(
   data.frame(name = "b", time = c(0, 5, 10), value = c(1, 3, 6)))
 forc <- setForcings(func, forcData) 
 }
-
