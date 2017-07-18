@@ -23,7 +23,7 @@ forcings <- attr(f_s, "forcings")
 
 # Generate ODE function
 func <- funC(f = c(f, f_s, chi, grad), forcings = forcings, 
-             fcontrol = "nospline")
+             fcontrol = "nospline", modelname = "example3")
 
 # Initialize times, states, parameters
 times <- seq(0, 15, by = .1)

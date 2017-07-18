@@ -74,7 +74,7 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   
   if("names"%in%names(myattr)) myattr <- myattr[-which(names(myattr)=="names")]
   
-  if(is.null(modelname)) modelname <- paste(c(".f", sample(c(letters, 0:9), 8, TRUE)), collapse="")
+  if(is.null(modelname)) modelname <- paste(c("f", sample(c(letters, 0:9), 8, TRUE)), collapse="")
   dllname <- modelname
   
   ## If boundary conditions are given, sort for leftbc first
@@ -180,14 +180,19 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   cat("#define tmin range[0]\n")
   cat("#define tmax range[1]\n")
   cat("\n")
-  if(fcontrol == "einspline") cat(paste(system(splinefile, intern=TRUE), "\n"))
+  if(fcontrol == "einspline") {
+    splineprogram <- paste(system(splinefile, intern=TRUE), "\n")
+    splineprogram <- gsub("createSplines(", paste0(modelname, "_createSplines("), splineprogram, fixed = TRUE)
+    splineprogram <- gsub("evaluateSplines(", paste0(modelname, "_evaluateSplines("), splineprogram, fixed = TRUE)
+    cat(splineprogram)
+  }
   cat("\n")
-  cat("void initmod(void (* odeparms)(int *, double *)) {\n")
+  cat(paste0("void ", modelname, "_initmod(void (* odeparms)(int *, double *)) {\n"))
   cat(paste("\t int N=", dv+dp,";\n",sep=""))
   cat("\t odeparms(&N, parms);\n")
   cat("}\n")
   cat("\n")
-  cat("void initforc(void (* odeforcs)(int *, double *)) {\n")
+  cat(paste0("void ", modelname, "_initforc(void (* odeforcs)(int *, double *)) {\n"))
   cat(paste("\t int N=", di,";\n",sep=""))
   cat("\t odeforcs(&N, forc);\n")
   cat("}\n")
@@ -197,12 +202,12 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   ## Derivative function
   
   cat("/** Derivatives (ODE system) **/\n")
-  cat("void derivs (int *n, double *t, double *y, double *ydot, double *RPAR, int *IPAR) {\n")
+  cat(paste0("void ", modelname, "_derivs (int *n, double *t, double *y, double *ydot, double *RPAR, int *IPAR) {\n"))
   cat("\n")
   if(fcontrol == "einspline") {
     cat("\t double x[nSplines];\n")
     cat("\t double xdot[nSplines];\n")
-    cat("\t evaluateSplines(t, x, xdot);\n")
+    cat(paste0("\t ", modelname, "_evaluateSplines(t, x, xdot);\n"))
   }
   cat("\t double time = *t;\n")
   if(!is.null(constraints)) 
@@ -232,13 +237,13 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   ## Jacobian of deriv
   if(jacobian == "full") {
     cat("/** Jacobian of the ODE system **/\n")
-    cat("void jacobian (int *n, double *t, double *y, double * df, double *RPAR, int *IPAR) {\n")
+    cat(paste0("void ", modelname, "_jacobian (int *n, double *t, double *y, double * df, double *RPAR, int *IPAR) {\n"))
     cat("\n")
     cat("\n")
     if(fcontrol == "einspline") {
       cat("\t double x[nSplines];\n")
       cat("\t double xdot[nSplines];\n")
-      cat("\t evaluateSplines(t, x, xdot);\n")
+      cat(paste0("\t ", modelname, "_evaluateSplines(t, x, xdot);\n"))
     }
     cat("\n")
     cat("double time = *t;\n")
@@ -256,13 +261,13 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
     not.zero.vec <- lapply(vecs, function(v) which(v != "0"))
     not.zero.columns <- which(sapply(not.zero.vec, function(v) length(v) > 0))
     cat("/** Jacobian vector of the ODE system **/\n")
-    cat("void jacvec (int *neq, double *t, double *y, int *j, int *ian, int *jan, double *pdj, double *yout, int *iout) {\n")
+    cat(paste0("void ", modelname, "_jacvec (int *neq, double *t, double *y, int *j, int *ian, int *jan, double *pdj, double *yout, int *iout) {\n"))
     cat("\n")
     cat("\n")
     if(fcontrol == "einspline") {
       cat("\t double x[nSplines];\n")
       cat("\t double xdot[nSplines];\n")
-      cat("\t evaluateSplines(t, x, xdot);\n")
+      cat(paste0("\t ", modelname, "_evaluateSplines(t, x, xdot);\n"))
     }
     cat("\t double time = *t;\n")
     cat("\t int i;\n")
@@ -287,13 +292,13 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   if(!is.null(rootfunc)) {
     
     cat("/** Root function **/\n")
-    cat("void myroot(int *neq, double *t, double *y, int *ng, double *gout, double *out, int *ip ) {\n")
+    cat(paste0("void ", modelname, "_myroot(int *neq, double *t, double *y, int *ng, double *gout, double *out, int *ip ) {\n"))
     cat("\n")
     cat("\n")
     if(fcontrol == "einspline") {
       cat("\t double x[nSplines];\n")
       cat("\t double xdot[nSplines];\n")
-      cat("\t evaluateSplines(t, x, xdot);\n")
+      cat(paste0("\t ", modelname, "_evaluateSplines(t, x, xdot);\n"))
     }
     cat("\t double time = *t;\n")
     cat(paste("\t gout[", 0:(dr-1),"] = ", rootfunc,";\n", sep=""))
@@ -321,7 +326,7 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
     ## Boundary Condition (for compatibility with bvpSolve)
     
     cat("/** Boundary Conditions **/\n")
-    cat("void gsub(int *i, int *n, double *z, double *g, double *RPAR, int *IPAR) {\n")
+    cat(paste0("void ", modelname, "_gsub(int *i, int *n, double *z, double *g, double *RPAR, int *IPAR) {\n"))
     cat("\n")
     cat(paste("\t if (*i==", 1,") *g=z[", myorder[1]-1, "]-y", 0, "_0;\n", sep=""))
     if(dv>1) cat(paste("\t else if (*i==", 2:dv,") *g=z[", myorder[-1]-1, "]-y", 2:dv-1, "_0;\n", sep=""))
@@ -332,7 +337,7 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
     ## Jacobian of Boundary Condition (for compatibility with bvpSolve)
     
     cat("/** Jacobian of the Boundary Conditions **/\n")
-    cat("void dgsub(int *i, int *n, double *z, double *dg, double *RPAR, int *IPAR) {\n")
+    cat(paste0("void ", modelname, "_dgsub(int *i, int *n, double *z, double *dg, double *RPAR, int *IPAR) {\n"))
     cat("\n")
     cat("\t int j;\n")
     cat("\t for (j = 0; j< *n; j++) dg[j] = 0;\n")
@@ -625,13 +630,15 @@ sundialsJac <- function(f, variables, parameters) {
 #' @export
 loadDLL <- function(func, cfunction="derivs") {
  
+  
   .so <- .Platform$dynlib.ext
   checkDLL <- try(getNativeSymbolInfo(cfunction), silent=TRUE)
   if(inherits(checkDLL, "try-error")) {
     dyn.load(paste0(func, .so))
     #cat("Shared object is loaded and ready to use\n")
   } else if ((is.null(checkDLL$package))) {
-    # We are on Windows (always overload)
+    # We are probably on Windows (try to unload and then load)
+    try(dyn.unload(paste0(func, .so)), silent = TRUE)
     dyn.load(paste0(func, .so))
   } else if((checkDLL$package)[[1]] != func) {
     # We are on Unix
@@ -694,7 +701,7 @@ setForcings <- function(func, forcings) {
    
     times <- do.call(c, lapply(out, function(o) o[,1]))
     values <- do.call(c, lapply(out, function(o) o[,2]))
-    cfunc <- getNativeSymbolInfo("createSplines")
+    cfunc <- getNativeSymbolInfo(paste0(func, "_createSplines"))
     .C(cfunc, as.double(times), as.double(values))
     
   }
@@ -846,11 +853,11 @@ odeC <- function(y, times, func, parms, ...) {
   parms <- parms[attr(func, "parameters")]
   parms <- c(parms, rep(0, length(y)))
   
-  arglist <- list(y = y, times = times.inner, func = "derivs", parms = parms, dllname = func, initfunc = "initmod")
+  arglist <- list(y = y, times = times.inner, func = paste0(func, "_derivs"), parms = parms, dllname = func, initfunc = paste0(func, "_initmod"))
   
   
   if (attr(func, "jacobian") == "full")
-    arglist <- c(arglist, list(jacfunc = "jacobian"))
+    arglist <- c(arglist, list(jacfunc = paste0(func, "_jacobian")))
     
   if (attr(func, "jacobian") == "inz.lsodes") {
     inz <- attr(func, "inz")
@@ -860,14 +867,14 @@ odeC <- function(y, times, func, parms, ...) {
   
   if (attr(func, "jacobian") == "jacvec.lsodes") {
     inz <- attr(func, "inz")
-    arglist <- c(arglist, list(sparsetype = "sparseusr", jacvec = "jacvec", inz = inz))
+    arglist <- c(arglist, list(sparsetype = "sparseusr", jacvec = paste0(func, "_jacvec"), inz = inz))
   }
     
   if (!is.null(attr(func, "forcings")) & attr(func, "fcontrol") == "nospline") 
-    arglist <- c(arglist, list(initforc = "initforc"))
+    arglist <- c(arglist, list(initforc = paste0(func, "_initforc")))
  
   if(!is.null(attr(func, "rootfunc")))
-    arglist <- c(arglist, list(rootfunc = "myroot", nroot = length(attr(func, "rootfunc"))))
+    arglist <- c(arglist, list(rootfunc = paste0(func, "_myroot"), nroot = length(attr(func, "rootfunc"))))
    
   if (!is.null(yout)) {
     arglist <- c(arglist, list(nout = length(yout), outnames = yout))
@@ -876,7 +883,7 @@ odeC <- function(y, times, func, parms, ...) {
   # Replace arguments and add new ones
   moreargs <- list(...)
   if(any(names(moreargs)=="forcings") & attr(func, "fcontrol") == "einspline") 
-    moreargs <- moreargs[-which(names(moreargs)=="forcings")]
+    moreargs <- moreargs[-which(names(moreargs) == "forcings")]
   
   i <- match(names(moreargs), names(arglist))
   is.overlap <- which(!is.na(i))
@@ -933,7 +940,7 @@ bvptwpC <- function(yini=NULL, x, func, yend=NULL, parms, xguess=NULL, yguess=NU
   if(!is.null(yini)) bini[names(yini)] <- yini
   if(!is.null(yend)) bend[names(yend)] <- yend
   if(!is.null(attr(func, "forcings")) & attr(func, "fcontrol") == "nospline") 
-    initforc <- "initforc"
+    initforc <- paste0(func, "_initforc")
   else
     initforc <- NULL
   
@@ -953,8 +960,8 @@ bvptwpC <- function(yini=NULL, x, func, yend=NULL, parms, xguess=NULL, yguess=NU
    
   out <- do.call(bvpSolve::bvptwp, c(moreargs, list(
     x = x, parms = newparms, xguess = xguess, yguess = yguess, posbound=posbound,
-    func = "derivs", jacfunc = "jacobian", bound = "gsub", jacbound = "dgsub", 
-    initfunc = "initmod", initforc = initforc,
+    func = paste0(func, "_derivs"), jacfunc = paste0(func, "_jacobian"), bound = paste0(func, "_gsub"), jacbound = paste0(func, "_dgsub"), 
+    initfunc = paste0(func, "_initmod"), initforc = initforc,
     dllname = func,
     ncomp = length(statepars)
   )))

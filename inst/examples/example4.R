@@ -25,7 +25,7 @@ bound <- data.frame(
 )
 
 # Generate ODE function
-func <- funC(f, jacobian="full", boundary = bound)
+func <- funC(f, jacobian="full", boundary = bound, modelname = "example4")
 
 # Initialize times, states, parameters and forcings
 times <- seq(0, 15, by = .1)
