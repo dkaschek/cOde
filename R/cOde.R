@@ -366,18 +366,18 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
 
     
     #### Assemble source code
+    dllname <- paste0(modelname, "_sdcv")
     program <- c(sundialsIncludes(),
-                 sundialsOde(f, variables, parameters),
-                 sundialsSensOde(fSens, variables, variablesSens, parameters))
+                 sundialsOde(f, variables, parameters, dllname),
+                 sundialsSensOde(fSens, variables, variablesSens, parameters, dllname))
     
     if (jacobian != "none") {
       program <- c(program,
-                   sundialsJac(f, variables, parameters))
+                   sundialsJac(f, variables, parameters, dllname))
     }
     
     
     ## Write source code
-    dllname <- paste0(modelname, "_sdcv")
     filename <- paste0(dllname, ".cpp")
     cppFile <- file(filename, open = "w")
     writeLines(c(program,
@@ -413,9 +413,9 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   if (solver == "Sundials" && compile) {
     attr(f, "equationsSens") <- fSens
     attr(f, "variablesSens") <- variablesSens
-    attr(f, "adrDynamics") <- getNativeSymbolInfo("dynamics", PACKAGE = dllname)$address
-    attr(f, "adrSensitivities") <- getNativeSymbolInfo("sensitivities", PACKAGE = dllname)$address
-    attr(f, "adrDynamicsJac") <- if (jacobian != "none") getNativeSymbolInfo("dynamicsJac", PACKAGE = dllname)$address else NULL
+    #attr(f, "adrDynamics") <- getNativeSymbolInfo("dynamics", PACKAGE = dllname)$address
+    #attr(f, "adrSensitivities") <- getNativeSymbolInfo("sensitivities", PACKAGE = dllname)$address
+    #attr(f, "adrDynamicsJac") <- if (jacobian != "none") getNativeSymbolInfo("dynamicsJac", PACKAGE = dllname)$address else NULL
     # Attribute deriv is used in odeC to decide if sensitivities are to be
     # integrated or not. As f is stored in func by odemodel(), deriv is set
     # to false. odemodel() stores this f also in extended with deriv = TRUE.
@@ -514,10 +514,10 @@ sundialsIncludes <- function() {
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-sundialsOde <- function(f, variables, parameters) {
+sundialsOde <- function(f, variables, parameters, modelname) {
   ## Header
   odeHead <- paste("/** Derivatives **/",
-                    paste0("vector<double> dynamics(const double& time, const vector<double>& y,"),
+                    paste0("vector<double> ", modelname, "_dynamics(const double& time, const vector<double>& y,"),
                     "                               const vector<double>& p, const vector<double>& f) {",
                     "    vector<double> ydot(y.size());", sep = "\n")
   
@@ -554,10 +554,10 @@ sundialsOde <- function(f, variables, parameters) {
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-sundialsSensOde <- function(f, variablesOde, variablesSens, parameters) {
+sundialsSensOde <- function(f, variablesOde, variablesSens, parameters, modelname) {
   ## Header
   odeHead <- paste("/** Derivatives of sensitivities **/",
-                   "vector<double> sensitivities (const double& time,",
+                   paste0("vector<double> ", modelname, "_sensitivities (const double& time,"),
                    "                              const vector<double>& y, const vector<double>& yS,",
                    "                              const vector<double>& p) {",
                    "    vector<double> ySdot(y.size() * (y.size() + p.size()));", sep = "\n")
@@ -592,10 +592,10 @@ sundialsSensOde <- function(f, variablesOde, variablesSens, parameters) {
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
-sundialsJac <- function(f, variables, parameters) {
+sundialsJac <- function(f, variables, parameters, modelname) {
   ## Header
   jacHead <- paste("/** Jacobian **/",
-                   paste0("vector<double> dynamicsJac(const double& time, const std::vector<double>& y, "),
+                   paste0("vector<double> ", modelname, "_dynamicsJac(const double& time, const std::vector<double>& y, "),
                    "                        const std::vector<double>& p,",
                    "                        const std::vector<double>& f) {",
                    "    vector<double> yJac(y.size()*y.size());", sep = "\n")
@@ -727,6 +727,7 @@ odeC <- function(y, times, func, parms, ...) {
   # Sundials::cvodes
   if (attr(func, "solver") == "Sundials") {
     
+    
     if (any(is.na(y))) {
       stop("At least one state is not provided with an initial value.")
     }
@@ -766,7 +767,7 @@ odeC <- function(y, times, func, parms, ...) {
                      maxnonlin = 10,
                      maxconvfail = 10,
                      method = "bdf",
-                     jacobian = if (is.null(attr(func, "adrDynamicsJac"))) FALSE
+                     jacobian = if (attr(func, "jacobian") == "none") FALSE
                                 else TRUE,
                      minimum = -1e-4,
                      positive = 1,
@@ -778,27 +779,36 @@ odeC <- function(y, times, func, parms, ...) {
 
     userSettings <- intersect(names(settings), varnames)
     settings[userSettings] <- varargs[userSettings]
-
+    
+    
+    
     
     # Check if a model is present
-    if (is.null(attr(func, "adrDynamics"))) {
+    adrDynamics <- try(getNativeSymbolInfo(name = paste0(func, "_dynamics")), silent = TRUE)
+    if (inherits(adrDynamics, "try-error")) {
       stop("No model provided. Create one by calling odemodel().")
     }
     
     
     # Check consistency of user setting and user provided jacobian.
     if (settings["jacobian"] == TRUE ) {  
-      if (is.null(attr(func, "adrDynamicsJac"))) {
+      adrDynamicsJac <- try(getNativeSymbolInfo(name = paste0(func, "_dynamicsJac")), silent = TRUE)
+      if (inherits(adrDynamicsJac, "try-error")) {
         stop("You said to provide the jacobian, but you did not.")
       }
+    } else {
+      adrDynamicsJac <- NULL
     }
     
     
     # Check consistency of user setting and user provided sensitivities.
     if (settings["sensitivities"] == TRUE ) {  
-      if (is.null(attr(func, "adrSensitivities"))) {
+      adrSensitivities <- try(getNativeSymbolInfo(name = paste0(func, "_sensitivities")), silent = TRUE)
+      if (inherits(adrSensitivities, "try-error")) {
         stop("You said to provide sensitivities, but you did not.")
       }
+    } else {
+      adrSensitivities <- NULL
     }
     
     
@@ -816,6 +826,11 @@ odeC <- function(y, times, func, parms, ...) {
     }
     
     
+    #cat("times:", times, "\n")
+    #cat("states:", y[names(attr(func, "equations"))], "\n")
+    #cat("parms:", parms[attr(func, "parameters")], "\n")
+
+    
     # Call integrator
     out = wrap_cvodes(times = times,
                       states_ = y[names(attr(func, "equations"))],
@@ -823,9 +838,9 @@ odeC <- function(y, times, func, parms, ...) {
                       initSens_ = initSens,
                       events_ = events,
                       settings = settings,
-                      model_ = attr(func, "adrDynamics"),
-                      jacobian_ = attr(func, "adrDynamicsJac"),
-                      sens_ = attr(func, "adrSensitivities"))
+                      model_ = as.list(adrDynamics)$address,
+                      jacobian_ = as.list(adrDynamicsJac)$address,
+                      sens_ = as.list(adrSensitivities)$address)
 
 
     # Prepare return
