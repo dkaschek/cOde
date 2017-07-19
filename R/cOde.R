@@ -429,8 +429,8 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
 
 #' Compile and load shared object implementing the ODE system.
 #' 
-#' @param modelname Base name for source and dll file.
 #' @param filename Full file name of the source file.
+#' @param dllname Base name for source and dll file.
 #' @param fcontrol Interpolation method for forcings.
 #' @param verbose Print compiler output or not.
 #'   
@@ -510,7 +510,7 @@ sundialsIncludes <- function() {
 #'   You may use the key word.
 #' @param variables Variables appearing on the ODE, \code{names(f)}.
 #' @param parameters Parameters appearing in the ODE.
-#' @param funcName Name of the returned function.
+#' @param modelname Base name of the dll.
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
@@ -551,6 +551,7 @@ sundialsOde <- function(f, variables, parameters, modelname) {
 #' @param variablesSens Variables appearing on the ODE of the sensitivities of
 #'   the dynamic system.
 #' @param parameters Parameters appearing in the ODE.
+#' @param modelname Base name of the dll.
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
@@ -588,7 +589,7 @@ sundialsSensOde <- function(f, variablesOde, variablesSens, parameters, modelnam
 #'   You may use the key word.
 #' @param variables Variables appearing on the ODE, \code{names(f)}.
 #' @param parameters Parameters appearing in the ODE.
-#' @param funcName Name of the returned function.
+#' @param modelname Base name of the dll.
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}

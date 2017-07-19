@@ -16,6 +16,8 @@ You may use the key word.}
 the dynamic system.}
 
 \item{parameters}{Parameters appearing in the ODE.}
+
+\item{modelname}{Base name of the dll.}
 }
 \value{
 C++ source code as a character vector.
