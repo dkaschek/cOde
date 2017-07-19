@@ -722,6 +722,8 @@ setForcings <- function(func, forcings) {
 #' @return matrix with times and states
 #' @example inst/examples/example1.R
 #' @export
+#' @import Rcpp
+#' @useDynLib cOde
 odeC <- function(y, times, func, parms, ...) {
   
   # Sundials::cvodes

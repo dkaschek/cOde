@@ -2,7 +2,7 @@ Package: cOde
 Type: Package
 Title: Automated C Code Generation for Use with the 'deSolve' and 'bvpSolve'
     Packages
-Version: 0.2.2
+Version: 0.3
 NeedsCompilation: yes
 Depends:
     R (>= 3.0)
@@ -14,7 +14,7 @@ LinkingTo: Rcpp, RcppArmadillo
 SystemRequirements: C++11
 Date: 2016-05-11
 Author: Daniel Kaschek
-Maintainer: Daniel Kaschek <daniel.kaschek@physik.uni-freiburg.de>
+Maintainer: Daniel Kaschek <daniel.kaschek@gmail.com>
 Description: Generates all necessary C functions allowing the user to work with
     the compiled-code interface of ode() and bvptwp(). The implementation supports
     "forcings" and "events". Also provides functions to symbolically compute

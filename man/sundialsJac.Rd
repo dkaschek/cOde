@@ -4,7 +4,7 @@
 \alias{sundialsJac}
 \title{Implement the Jacobian of the ODE system for sundials::cvodes.}
 \usage{
-sundialsJac(f, variables, parameters)
+sundialsJac(f, variables, parameters, modelname)
 }
 \arguments{
 \item{f}{Named character vector containing the right-hand sides of the ODE.

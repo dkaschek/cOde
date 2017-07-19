@@ -4,7 +4,7 @@
 \alias{sundialsSensOde}
 \title{Implement sensitivities for an ODE system, sundials::cvodes.}
 \usage{
-sundialsSensOde(f, variablesOde, variablesSens, parameters)
+sundialsSensOde(f, variablesOde, variablesSens, parameters, modelname)
 }
 \arguments{
 \item{f}{Named character vector containing the right-hand sides of the ODE. 
