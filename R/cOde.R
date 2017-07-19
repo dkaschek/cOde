@@ -410,7 +410,7 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   attr(f, "fcontrol") <- fcontrol
   attr(f, "solver" ) <- solver
   
-  if (solver == "Sundials" && compile) {
+  if (solver == "Sundials") {
     attr(f, "equationsSens") <- fSens
     attr(f, "variablesSens") <- variablesSens
     #attr(f, "adrDynamics") <- getNativeSymbolInfo("dynamics", PACKAGE = dllname)$address

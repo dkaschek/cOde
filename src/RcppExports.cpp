@@ -63,3 +63,14 @@ RcppExport SEXP cOde_RcppExport_registerCCallable() {
     R_RegisterCCallable("cOde", "cOde_RcppExport_validate", (DL_FUNC)cOde_RcppExport_validate);
     return R_NilValue;
 }
+
+static const R_CallMethodDef CallEntries[] = {
+    {"cOde_wrap_cvodes", (DL_FUNC) &cOde_wrap_cvodes, 9},
+    {"cOde_RcppExport_registerCCallable", (DL_FUNC) &cOde_RcppExport_registerCCallable, 0},
+    {NULL, NULL, 0}
+};
+
+RcppExport void R_init_cOde(DllInfo *dll) {
+    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+    R_useDynamicSymbols(dll, FALSE);
+}
