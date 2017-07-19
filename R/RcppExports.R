@@ -5,7 +5,7 @@
 #'
 #' @description Wrapper around the solver cvodes from the Sundials suite.
 #'
-#'@parameter times
+#' @parameter times
 #'     Numeric vector of time points at which integration results are returned.
 #'
 #' @parameter states_
