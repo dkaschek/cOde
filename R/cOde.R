@@ -818,12 +818,10 @@ odeC <- function(y, times, func, parms, ...) {
     # for Sundials they are not usefull, as only initials for sensitivities are
     # reported which are not reduced by reduceSensitivities. Therefore, we have
     # to construct from scratch.
-    initSens <- NULL
-    if (settings["sensitivities"] == TRUE) {
-      nStates <- length(attr(func, "equations"))
-      nPars <- length(parms)
-      initSens <- c(diag(nStates), matrix(0, nStates, nPars))
-    }
+    # initSens must not be NULL when passed to wrap_cvodes
+    nStates <- length(attr(func, "equations"))
+    nPars <- length(parms)
+    initSens <- c(diag(nStates), matrix(0, nStates, nPars))
     
     
     #cat("times:", times, "\n")
