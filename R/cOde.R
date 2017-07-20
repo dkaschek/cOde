@@ -703,7 +703,8 @@ setForcings <- function(func, forcings) {
     times <- do.call(c, lapply(out, function(o) o[,1]))
     values <- do.call(c, lapply(out, function(o) o[,2]))
     cfunc <- getNativeSymbolInfo(paste0(func, "_createSplines"))
-    .C(cfunc, as.double(times), as.double(values))
+    #.C(cfunc, as.double(times), as.double(values))
+    do.call(".C", list(cfunc, as.double(times), as.double(values)))
     
   }
   
