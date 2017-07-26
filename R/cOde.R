@@ -622,32 +622,6 @@ sundialsJac <- function(f, variables, parameters, modelname) {
 
 
 
-#' Dynamically load DLL with automatic unloading of conflicting DLLs
-#' 
-#' @param func result from funC(), contains the information about the DLL name to be loaded
-#' @param cfunction character, denoting the C function name.
-#' @details If the C function name is already part of another loaded DLL, the corresponding DLL is
-#' unloaded and the desired func DLL is loaded instead.
-#' @export
-loadDLL <- function(func, cfunction="derivs") {
- 
-  
-  .so <- .Platform$dynlib.ext
-  checkDLL <- try(getNativeSymbolInfo(cfunction), silent=TRUE)
-  if(inherits(checkDLL, "try-error")) {
-    dyn.load(paste0(func, .so))
-    #cat("Shared object is loaded and ready to use\n")
-  } else if ((is.null(checkDLL$package))) {
-    # We are probably on Windows (try to unload and then load)
-    try(dyn.unload(paste0(func, .so)), silent = TRUE)
-    dyn.load(paste0(func, .so))
-  } else if((checkDLL$package)[[1]] != func) {
-    # We are on Unix
-    dyn.load(paste0(func, .so))
-  }
-  
-}
-
 #' Generate interpolation spline for the forcings and write into list of matrices
 #' 
 #' @param func result from funC()
