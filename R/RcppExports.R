@@ -5,22 +5,22 @@
 #'
 #' @description Wrapper around the solver cvodes from the Sundials suite.
 #'
-#' @parameter times
+#' @param times
 #'     Numeric vector of time points at which integration results are returned.
 #'
-#' @parameter states_
+#' @param states_
 #'     Numeric vector of inital values for states.
 #'
-#' @parameter parameters_
+#' @param parameters_
 #'     Numeric vector of model parameters values.
 #'
-#' @parameter initSens_
+#' @param initSens_
 #'     Numeric vector of inital values for sensitivities.
 #'
-#' @parameter forcings_data_
+#' @param forcings_data_
 #'     List of forcings acting on the system.
 #'
-#' @parameter settings
+#' @param settings
 #'     List of setting passed to cvodes. For a detailed documentation of the
 #'     supported setting please check the
 #'     \href{http://computation.llnl.gov/projects/sundials/sundials-software}{Sundials homepage}.
@@ -95,7 +95,7 @@
 #'     Integrate sensitivities of the dynamic system.}
 #'     }
 #'
-#' @parameter model_ The address of the ode model. The address is obtained as the
+#' @param model_ The address of the ode model. The address is obtained as the
 #'     attribute \code{address} of \code{\link[base]{getNativeSymbolInfo}}. The
 #'     signature of the model function must comply to
 #'
@@ -130,7 +130,7 @@ NULL
 #'     Vector of forcings acting on the model.}
 #'     }
 #'
-#' @parameter jacobian_
+#' @param jacobian_
 #'     The address of the function which returns the Jacobian matrix of the
 #'     model. Again, this address is the attribute \code{address} obtained
 #'     from the call to \code{\link[base]{getNativeSymbolInfo()}}. The function

@@ -409,6 +409,7 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   attr(f, "nGridpoints") <- nGridpoints
   attr(f, "fcontrol") <- fcontrol
   attr(f, "solver" ) <- solver
+  attr(f, "modelname") <- modelname
   
   if (solver == "Sundials") {
     attr(f, "equationsSens") <- fSens
@@ -835,6 +836,7 @@ odeC <- function(y, times, func, parms, ...) {
   
   # deSolve
   nGridpoints <- attr(func, "nGridpoints")
+  modelname <- attr(func, "modelname")
   times.inner <- seq(min(c(times, 0)), max(times), len=nGridpoints)
   times.inner <- sort(unique(c(times, times.inner)))
   which.times <- match(times, times.inner)
@@ -844,7 +846,7 @@ odeC <- function(y, times, func, parms, ...) {
   parms <- parms[attr(func, "parameters")]
   parms <- c(parms, rep(0, length(y)))
   
-  arglist <- list(y = y, times = times.inner, func = paste0(func, "_derivs"), parms = parms, dllname = func, initfunc = paste0(func, "_initmod"))
+  arglist <- list(y = y, times = times.inner, func = paste0(func, "_derivs"), parms = parms, dllname = modelname, initfunc = paste0(func, "_initmod"))
   
   
   if (attr(func, "jacobian") == "full")
