@@ -483,6 +483,7 @@ cvodesSyntax <- function(f, variables, parameters, varSym = "y", parSym = "p", f
 #' @return C++ source code as a character vector.
 #'   
 #' @author Wolfgang Mader, \email{Wolfgang.Mader@@fdm.uni-freiburg.de}
+#' @importFrom utils packageVersion
 sundialsIncludes <- function() {
   ## General preparations
   #### User info
@@ -638,6 +639,7 @@ sundialsJac <- function(f, variables, parameters, modelname) {
 #'   data.frame(name = "b", time = c(0, 5, 10), value = c(1, 3, 6)))
 #' forc <- setForcings(func, forcData) 
 #' @export
+#' @importFrom stats splinefun
 setForcings <- function(func, forcings) {
   
   #loadDLL(func)

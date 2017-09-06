@@ -210,6 +210,7 @@ replaceOperation <- function(what, by, x) {
 #' jacobianSymb(c(A="A*B", B="A+B"))
 #' jacobianSymb(c(x="A*B", y="A+B"), c("A", "B"))
 #' @export
+#' @importFrom stats D
 jacobianSymb <- function(f, variables=NULL) {
   
   if(is.null(variables)) variables <- names(f)

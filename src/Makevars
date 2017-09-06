@@ -1,5 +1,5 @@
-PKG_CXXFLAGS= -I../inst/include/ -I../inst/include/solver/
-PKG_CFLAGS= -I../inst/include/ -I../inst/include/solver/
+PKG_CXXFLAGS= -I../inst/include/ -I../inst/include/solver/ -DNO_FPRINTF_OUTPUT
+PKG_CFLAGS= -I../inst/include/ -I../inst/include/solver/ -DNO_FPRINTF_OUTPUT
 CXX_STD = CXX11
 
 SUNDIALSOBJECTS=\

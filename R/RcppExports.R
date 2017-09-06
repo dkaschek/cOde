@@ -2,26 +2,19 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #' Solve an inital value problem with cvodes.
+#' 
 #'
 #' @description Wrapper around the solver cvodes from the Sundials suite.
 #'
-#' @param times
-#'     Numeric vector of time points at which integration results are returned.
+#' @param times Numeric vector of time points at which integration results are returned.
 #'
-#' @param states_
-#'     Numeric vector of inital values for states.
+#' @param states_ Numeric vector of inital values for states.
 #'
-#' @param parameters_
-#'     Numeric vector of model parameters values.
+#' @param parameters_ Numeric vector of model parameters values.
 #'
-#' @param initSens_
-#'     Numeric vector of inital values for sensitivities.
+#' @param initSens_ Numeric vector of inital values for sensitivities.
 #'
-#' @param forcings_data_
-#'     List of forcings acting on the system.
-#'
-#' @param settings
-#'     List of setting passed to cvodes. For a detailed documentation of the
+#' @param settings List of setting passed to cvodes. For a detailed documentation of the
 #'     supported setting please check the
 #'     \href{http://computation.llnl.gov/projects/sundials/sundials-software}{Sundials homepage}.
 #'     Supported settings are
@@ -100,8 +93,7 @@
 #'     signature of the model function must comply to
 #'
 #'     \code{std::array<std::vector<double>, 2> (const double& t, const std::vector<double>&
-NULL
-
+#'     states,
 #'     const std::vector<double>& parameters, const std::vector<double>& forcings)}
 #'
 #'     Return vector \code{std::array<std::vector<double>, 2>}
@@ -130,14 +122,21 @@ NULL
 #'     Vector of forcings acting on the model.}
 #'     }
 #'
-#' @param jacobian_
-#'     The address of the function which returns the Jacobian matrix of the
+#' @param sens_ The address of the function which returns the right-hand side of the
+#'     sensitivity equations. Again, this address is the attribute \code{address} obtained
+#'     from the call to \code{\link[base]{getNativeSymbolInfo}}. The list of arguments is the 
+#'     same as for \option{model_}.
+#'     
+#' @param events_ Data.frame with columns \code{var} (index of the ODE state in the vector
+#'     of states.), \code{time} (time point of the event), \code{method} (one of "replace", 
+#'     "add", or "multiply"), \code{value} (value associated with the event).
+#'     
+#' @param jacobian_ The address of the function which returns the Jacobian matrix of the
 #'     model. Again, this address is the attribute \code{address} obtained
-#'     from the call to \code{\link[base]{getNativeSymbolInfo()}}. The function
+#'     from the call to \code{\link[base]{getNativeSymbolInfo}}. The function
 #'     must have the signature
 #'     \code{arma::mat (const double& t, const std::vector<double>& states, const
-NULL
-
+#'     std::vector<double>& parameters, const std::vector<double>& forcings)}
 #'     Returned is the Jacobian matrix as an \code{arma::mat} from the
 #'     Armadillo package.
 #'
