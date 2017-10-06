@@ -275,6 +275,8 @@ void N_VPrint_Serial(N_Vector x)
   N  = NV_LENGTH_S(x);
   xd = NV_DATA_S(x);
 
+#ifndef NO_FPRINTF_OUTPUT
+  
   for (i = 0; i < N; i++) {
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%35.32Lg\n", xd[i]);
@@ -286,6 +288,8 @@ void N_VPrint_Serial(N_Vector x)
   }
   printf("\n");
 
+#endif
+  
   return;
 }
 

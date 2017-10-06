@@ -1,7 +1,6 @@
 Package: cOde
 Type: Package
-Title: Automated C Code Generation for Use with the 'deSolve' and 'bvpSolve'
-    Packages
+Title: Automated C Code Generation for 'deSolve', 'bvpSolve' and 'Sundials'
 Version: 0.3
 NeedsCompilation: yes
 Depends:
@@ -12,13 +11,14 @@ Suggests:
 Imports: Rcpp (>= 0.11.3)
 LinkingTo: Rcpp, RcppArmadillo
 SystemRequirements: C++11
-Date: 2016-05-11
+Date: 2017-08-23
 Author: Daniel Kaschek
 Maintainer: Daniel Kaschek <daniel.kaschek@gmail.com>
 Description: Generates all necessary C functions allowing the user to work with
     the compiled-code interface of ode() and bvptwp(). The implementation supports
     "forcings" and "events". Also provides functions to symbolically compute
     Jacobians, sensitivity equations and adjoint sensitivities being the basis for
-    sensitivity analysis.
+    sensitivity analysis. Alternatively to deSolve, the Sundials CVODES solver is
+    implemented for computation of model sensitivities.
 License: GPL (>= 2)
 RoxygenNote: 6.0.1

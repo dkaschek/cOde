@@ -313,6 +313,8 @@ void PrintMat(DlsMat A)
 
   case SUNDIALS_DENSE:
 
+#ifndef NO_FPRINTF_OUTPUT
+
     printf("\n");
     for (i=0; i < A->M; i++) {
       for (j=0; j < A->N; j++) {
@@ -328,12 +330,22 @@ void PrintMat(DlsMat A)
     }
     printf("\n");
     
-    break;
+#endif
 
+    
+    break;
+    
+    
   case SUNDIALS_BAND:
 
+    
     a = A->cols;
+    
+#ifndef NO_FPRINTF_OUTPUT
+    
+    
     printf("\n");
+    
     for (i=0; i < A->N; i++) {
       start = SUNMAX(0,i-A->ml);
       finish = SUNMIN(A->N-1,i+A->mu);
@@ -351,7 +363,11 @@ void PrintMat(DlsMat A)
     }
     printf("\n");
     
+    
+#endif
+    
     break;
+
 
   }
 

@@ -322,7 +322,11 @@ void *IDACreate(void)
   IDA_mem->ida_edata       = NULL;
   IDA_mem->ida_ehfun       = IDAErrHandler;
   IDA_mem->ida_eh_data     = IDA_mem;
+#ifndef NO_FPRINTF_OUTPUT
+  IDA_mem->ida_errfp       = NULL;
+#else
   IDA_mem->ida_errfp       = stderr;
+#endif
   IDA_mem->ida_maxord      = MAXORD_DEFAULT;
   IDA_mem->ida_mxstep      = MXSTEP_DEFAULT;
   IDA_mem->ida_hmax_inv    = HMAX_INV_DEFAULT;
