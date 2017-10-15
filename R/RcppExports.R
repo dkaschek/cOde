@@ -168,10 +168,10 @@
 #'
 #' @export
 wrap_cvodes <- function(times, states_, parameters_, initSens_, events_, settings, model_, jacobian_, sens_) {
-    .Call('cOde_wrap_cvodes', PACKAGE = 'cOde', times, states_, parameters_, initSens_, events_, settings, model_, jacobian_, sens_)
+    .Call('_cOde_wrap_cvodes', PACKAGE = 'cOde', times, states_, parameters_, initSens_, events_, settings, model_, jacobian_, sens_)
 }
 
 # Register entry points for exported C++ functions
 methods::setLoadAction(function(ns) {
-    .Call('cOde_RcppExport_registerCCallable', PACKAGE = 'cOde')
+    .Call('_cOde_RcppExport_registerCCallable', PACKAGE = 'cOde')
 })

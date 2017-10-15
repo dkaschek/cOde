@@ -17,7 +17,7 @@ namespace cOde {
             require("cOde", Rcpp::Named("quietly") = true);
             typedef int(*Ptr_validate)(const char*);
             static Ptr_validate p_validate = (Ptr_validate)
-                R_GetCCallable("cOde", "cOde_RcppExport_validate");
+                R_GetCCallable("cOde", "_cOde_RcppExport_validate");
             if (!p_validate(sig)) {
                 throw Rcpp::function_not_exported(
                     "C++ function with signature '" + std::string(sig) + "' not found in cOde");
@@ -30,12 +30,12 @@ namespace cOde {
         static Ptr_wrap_cvodes p_wrap_cvodes = NULL;
         if (p_wrap_cvodes == NULL) {
             validateSignature("Rcpp::NumericMatrix(*wrap_cvodes)(Rcpp::NumericVector,Rcpp::NumericVector,Rcpp::NumericVector,Rcpp::NumericVector,Rcpp::DataFrame,Rcpp::List,SEXP,SEXP,SEXP)");
-            p_wrap_cvodes = (Ptr_wrap_cvodes)R_GetCCallable("cOde", "cOde_wrap_cvodes");
+            p_wrap_cvodes = (Ptr_wrap_cvodes)R_GetCCallable("cOde", "_cOde_wrap_cvodes");
         }
         RObject rcpp_result_gen;
         {
             RNGScope RCPP_rngScope_gen;
-            rcpp_result_gen = p_wrap_cvodes(Rcpp::wrap(times), Rcpp::wrap(states_), Rcpp::wrap(parameters_), Rcpp::wrap(initSens_), Rcpp::wrap(events_), Rcpp::wrap(settings), Rcpp::wrap(model_), Rcpp::wrap(jacobian_), Rcpp::wrap(sens_));
+            rcpp_result_gen = p_wrap_cvodes(Shield<SEXP>(Rcpp::wrap(times)), Shield<SEXP>(Rcpp::wrap(states_)), Shield<SEXP>(Rcpp::wrap(parameters_)), Shield<SEXP>(Rcpp::wrap(initSens_)), Shield<SEXP>(Rcpp::wrap(events_)), Shield<SEXP>(Rcpp::wrap(settings)), Shield<SEXP>(Rcpp::wrap(model_)), Shield<SEXP>(Rcpp::wrap(jacobian_)), Shield<SEXP>(Rcpp::wrap(sens_)));
         }
         if (rcpp_result_gen.inherits("interrupted-error"))
             throw Rcpp::internal::InterruptedException();

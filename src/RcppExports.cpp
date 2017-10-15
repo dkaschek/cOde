@@ -11,7 +11,7 @@ using namespace Rcpp;
 
 // wrap_cvodes
 Rcpp::NumericMatrix wrap_cvodes(Rcpp::NumericVector times, Rcpp::NumericVector states_, Rcpp::NumericVector parameters_, Rcpp::NumericVector initSens_, Rcpp::DataFrame events_, Rcpp::List settings, SEXP model_, SEXP jacobian_, SEXP sens_);
-static SEXP cOde_wrap_cvodes_try(SEXP timesSEXP, SEXP states_SEXP, SEXP parameters_SEXP, SEXP initSens_SEXP, SEXP events_SEXP, SEXP settingsSEXP, SEXP model_SEXP, SEXP jacobian_SEXP, SEXP sens_SEXP) {
+static SEXP _cOde_wrap_cvodes_try(SEXP timesSEXP, SEXP states_SEXP, SEXP parameters_SEXP, SEXP initSens_SEXP, SEXP events_SEXP, SEXP settingsSEXP, SEXP model_SEXP, SEXP jacobian_SEXP, SEXP sens_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type times(timesSEXP);
@@ -27,11 +27,11 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP_RETURN_ERROR
 }
-RcppExport SEXP cOde_wrap_cvodes(SEXP timesSEXP, SEXP states_SEXP, SEXP parameters_SEXP, SEXP initSens_SEXP, SEXP events_SEXP, SEXP settingsSEXP, SEXP model_SEXP, SEXP jacobian_SEXP, SEXP sens_SEXP) {
+RcppExport SEXP _cOde_wrap_cvodes(SEXP timesSEXP, SEXP states_SEXP, SEXP parameters_SEXP, SEXP initSens_SEXP, SEXP events_SEXP, SEXP settingsSEXP, SEXP model_SEXP, SEXP jacobian_SEXP, SEXP sens_SEXP) {
     SEXP rcpp_result_gen;
     {
         Rcpp::RNGScope rcpp_rngScope_gen;
-        rcpp_result_gen = PROTECT(cOde_wrap_cvodes_try(timesSEXP, states_SEXP, parameters_SEXP, initSens_SEXP, events_SEXP, settingsSEXP, model_SEXP, jacobian_SEXP, sens_SEXP));
+        rcpp_result_gen = PROTECT(_cOde_wrap_cvodes_try(timesSEXP, states_SEXP, parameters_SEXP, initSens_SEXP, events_SEXP, settingsSEXP, model_SEXP, jacobian_SEXP, sens_SEXP));
     }
     Rboolean rcpp_isInterrupt_gen = Rf_inherits(rcpp_result_gen, "interrupted-error");
     if (rcpp_isInterrupt_gen) {
@@ -49,7 +49,7 @@ RcppExport SEXP cOde_wrap_cvodes(SEXP timesSEXP, SEXP states_SEXP, SEXP paramete
 }
 
 // validate (ensure exported C++ functions exist before calling them)
-static int cOde_RcppExport_validate(const char* sig) { 
+static int _cOde_RcppExport_validate(const char* sig) { 
     static std::set<std::string> signatures;
     if (signatures.empty()) {
         signatures.insert("Rcpp::NumericMatrix(*wrap_cvodes)(Rcpp::NumericVector,Rcpp::NumericVector,Rcpp::NumericVector,Rcpp::NumericVector,Rcpp::DataFrame,Rcpp::List,SEXP,SEXP,SEXP)");
@@ -58,15 +58,15 @@ static int cOde_RcppExport_validate(const char* sig) {
 }
 
 // registerCCallable (register entry points for exported C++ functions)
-RcppExport SEXP cOde_RcppExport_registerCCallable() { 
-    R_RegisterCCallable("cOde", "cOde_wrap_cvodes", (DL_FUNC)cOde_wrap_cvodes_try);
-    R_RegisterCCallable("cOde", "cOde_RcppExport_validate", (DL_FUNC)cOde_RcppExport_validate);
+RcppExport SEXP _cOde_RcppExport_registerCCallable() { 
+    R_RegisterCCallable("cOde", "_cOde_wrap_cvodes", (DL_FUNC)_cOde_wrap_cvodes_try);
+    R_RegisterCCallable("cOde", "_cOde_RcppExport_validate", (DL_FUNC)_cOde_RcppExport_validate);
     return R_NilValue;
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"cOde_wrap_cvodes", (DL_FUNC) &cOde_wrap_cvodes, 9},
-    {"cOde_RcppExport_registerCCallable", (DL_FUNC) &cOde_RcppExport_registerCCallable, 0},
+    {"_cOde_wrap_cvodes", (DL_FUNC) &_cOde_wrap_cvodes, 9},
+    {"_cOde_RcppExport_registerCCallable", (DL_FUNC) &_cOde_RcppExport_registerCCallable, 0},
     {NULL, NULL, 0}
 };
 
