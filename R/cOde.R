@@ -60,7 +60,7 @@
 #' odeC(yini, times, func, parms)
 #' }
 #' @export
-funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL, 
+funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL, 
                  jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), 
                  rootfunc = NULL, boundary = NULL, 
                  compile = TRUE, fcontrol = c("nospline", "einspline"),
@@ -93,13 +93,23 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
     forc.t.replace <- paste0("xdot[", 1:length(forcings.t)-1, "]")
   }
   
+     
   ## Analyze f by parser
-  
   variables <- names(f)
-  symbols <- getSymbols(c(f, rootfunc, constraints))
+  symbols <- getSymbols(c(f, rootfunc, constraints, as.character(events[["value"]]), as.character(events[["time"]])))
   parameters <- symbols[!symbols%in%c(variables, forcings, names(constraints), names(rootfunc), "time")]
+
+  ## Translate events into list of expressions
+  if (!is.null(events)) {
+    events <- as.list(events)
+    events[["time"]] <- parse(text = paste0("c(", paste(events[["time"]], collapse = ", "), ")"))
+    events[["value"]] <- parse(text = paste0("c(", paste(events[["value"]], collapse = ", "), ")"))
+  }
+  
   jac <- NULL
   inz <- NULL
+  
+  
   
   jacobian <- match.arg(jacobian)
   if(jacobian != "none") jac  <- jacobianSymb(f)
@@ -413,6 +423,7 @@ funC <- function(f, forcings = NULL, fixed = NULL, outputs=NULL,
   attr(f, "variables") <- variables
   attr(f, "parameters") <- parameters
   attr(f, "forcings") <- forcings
+  attr(f, "events") <- events
   attr(f, "outputs") <- outputs
   attr(f, "jacobian") <- jacobian
   attr(f, "inz") <- inz
@@ -887,16 +898,35 @@ odeC <- function(y, times, func, parms, ...) {
     arglist <- c(arglist, list(nout = length(yout), outnames = yout))
   }
   
+  if (!is.null(attr(func, "events"))) {
+    events <- attr(func, "events")
+    # evaluate event parameters and times
+    events <- with(as.list(parms), {
+      data.frame(var = events[["var"]], time = eval(events[["time"]]),
+                 value = eval(events[["value"]]), method = events[["method"]]
+      )
+    })
+  }
+  
   # Replace arguments and add new ones
   moreargs <- list(...)
   if(any(names(moreargs)=="forcings") & attr(func, "fcontrol") == "einspline") 
     moreargs <- moreargs[-which(names(moreargs) == "forcings")]
+  
+  
+  
+  
   
   i <- match(names(moreargs), names(arglist))
   is.overlap <- which(!is.na(i))
   is.new <- which(is.na(i))
   arglist[i[is.overlap]] <- moreargs[is.overlap]
   arglist <- c(arglist, moreargs[is.new])
+  
+  # Merge events
+  arglist[["events"]][["data"]] <- unique(rbind(events, arglist[["events"]][["data"]]))
+  arglist[["events"]][["data"]] <- arglist[["events"]][["data"]][order(arglist[["events"]][["data"]][["time"]]),]
+  
   
   #loadDLL(func)
   
