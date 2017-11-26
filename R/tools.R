@@ -38,3 +38,12 @@ reduceSensitivities <- function(sens, vanishing) {
   #return(list(sens, sensvar.zero,sensvar.nonzero))
   return(sens)
 }
+
+
+is.number <- function(x) {
+  
+  out <- suppressWarnings(as.character(as.numeric(x)) == x)
+  out[is.na(out)] <- FALSE
+  return(out)
+  
+}
