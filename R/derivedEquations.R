@@ -25,16 +25,21 @@
 #' @example inst/examples/example2_sundials.R
 #' @example inst/examples/example3.R
 #' @export
-sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, reduce = FALSE) {
+sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, events = NULL, reduce = FALSE) {
   
   variables <- names(f)
   states <- states[!states%in%inputs]
+  eventpars <- getSymbols(as.character(events[["value"]]))
+  eventtimepars <- getSymbols(as.character(events[["time"]]))
   
   if(is.null(parameters)) {
-    pars <- getSymbols(f, exclude=c(variables, inputs, "time"))
+    pars <- union(
+      getSymbols(f, exclude=c(variables, inputs, "time")),
+      eventpars)
   } else {
     pars <- parameters[!parameters%in%inputs]
   }
+  
   
   Dyf <- jacobianSymb(f, variables)
   Dpf <- jacobianSymb(f, pars)
@@ -47,12 +52,16 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   # generate sensitivity variable names and names with zero entries
   mygridY0 <- expand.grid.alt(variables, states)
   mygridP <- expand.grid.alt(variables, pars)
+  mygridE <- expand.grid.alt(variables, eventpars) # subset with event parameters (should not be reduced)
+  
   sensParVariablesY0 <- apply(mygridY0, 1, paste, collapse = ".")
   sensParVariablesP <- apply(mygridP, 1, paste, collapse = ".")
+  sensParVariablesE <- apply(mygridE, 1, paste, collapse = ".") # subset with event parameters (should not be reduced)
 
   # Write sensitivity equations in matrix form
   Dy0y <- matrix(sensParVariablesY0, ncol = ds, nrow = dv)
   Dpy <- matrix(sensParVariablesP, ncol = dp, nrow = dv)
+  
   
   
   gl <- c(as.vector(prodSymb(matrix(Dyf, ncol = dv), Dy0y)), 
@@ -64,7 +73,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   names(newfun) <- newvariables
   
   # Reduce the sensitivities
-  vanishing <- c(sensParVariablesY0, sensParVariablesP[Dpf == "0"])
+  vanishing <- c(sensParVariablesY0, sensParVariablesP[Dpf == "0" & !sensParVariablesP %in% sensParVariablesE])
   if(reduce) {
     newfun <- reduceSensitivities(newfun, vanishing)
     is.zero.sens <- names(newfun) %in% attr(newfun,"is.zero")
@@ -80,6 +89,21 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   names(initials) <- newvariables[!is.zero.sens]
   ones <- which(apply(newvariables.grid, 1, function(row) row[1] == row[2]))
   initials[newvariables[ones]] <- 1
+  
+  # Compute outputs (due to reduction and due to eventtime parameters)
+  output.reduction <- structure(rep(0, length(which(is.zero.sens))), names = newvariables[is.zero.sens])
+  output.etpars <- NULL
+  if (!is.null(events)) output.etpars <- unlist(lapply(1:nrow(events), function(i) {
+    tpar <- getSymbols(as.character(events[["time"]][i]))
+    evar <- getSymbols(as.character(events[["var"]][i]))
+    if (length(tpar) == 0) { 
+      return(NULL)
+    } else {
+      myjac <- as.vector(jacobianSymb(f, evar))
+      names(myjac) <- paste(names(f), tpar, sep = ".")
+      return(myjac)
+    }
+  }))
   
   
   # Construct index vector for states and parameters indicating non-vanishing
@@ -116,7 +140,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   
   attr(newfun, "chi") <- chi
   attr(newfun, "grad") <- grad
-  attr(newfun, "outputs") <- structure(rep(0, length(which(is.zero.sens))), names = newvariables[is.zero.sens])
+  attr(newfun, "outputs") <- c(output.reduction, output.etpars)
   attr(newfun, "forcings") <- c(statesD, weightsD)
   attr(newfun, "yini") <- initials
   attr(newfun, "hasSensStatesIdx") <- hasSens.StatesIdx
