@@ -1,7 +1,7 @@
 Package: cOde
 Type: Package
 Title: Automated C Code Generation for 'deSolve', 'bvpSolve' and 'Sundials'
-Version: 0.3
+Version: 0.4
 NeedsCompilation: yes
 Depends:
     R (>= 3.0)
