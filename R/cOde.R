@@ -4,6 +4,13 @@
 #'   You may use the key word \code{time} in your equations for non-autonomous
 #'   ODEs.
 #' @param forcings Character vector with the names of the forcings
+#' @param events data.frame of events with columns "var" (character, the name of the state to be
+#' affected), "time" (numeric or character, time point), 
+#' "value" (numeric or character, value), "method" (character, either
+#' "replace" or "add"). See \link[deSolve]{events}. If "var" and "time" are
+#' characters, their values need to be speciefied in the parameter vector
+#' when calling \code{\link{odeC}}. An event function is generated and compiled
+#' with the ODE.
 #' @param fixed  character vector with the names of parameters (initial values
 #'   and dynamic) for which no sensitivities are required (will speed up the
 #'   integration).
@@ -99,18 +106,9 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   symbols <- getSymbols(c(f, rootfunc, constraints, as.character(events[["value"]]), as.character(events[["time"]])))
   parameters <- symbols[!symbols%in%c(variables, forcings, names(constraints), names(rootfunc), "time")]
 
-  ## Translate events into list of expressions
-  if (!is.null(events)) {
-    events <- as.list(events)
-    events[["time"]] <- parse(text = paste0("c(", paste(events[["time"]], collapse = ", "), ")"))
-    events[["value"]] <- parse(text = paste0("c(", paste(events[["value"]], collapse = ", "), ")"))
-  }
-  
+
   jac <- NULL
   inz <- NULL
-  
-  
-  
   jacobian <- match.arg(jacobian)
   if(jacobian != "none") jac  <- jacobianSymb(f)
   if(jacobian %in% c("inz.lsodes", "jacvec.lsodes")) {
@@ -158,6 +156,26 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   if(!is.null(rootfunc))
     rootfunc <- deSolveSyntax(rootfunc)
   
+  if(!is.null(events)) {
+    var <- deSolveSyntax(as.character(events[["var"]]))
+    time <- deSolveSyntax(as.character(events[["time"]]))
+    value <- deSolveSyntax(as.character(events[["value"]]))
+    method <- as.character(events[["method"]])
+    time.unique <- unique(time)
+    eventsfn <- sapply(1:length(time.unique), function(i) {
+      t <- time.unique[i]
+      paste0("\t if(*t == ", t, " & eventcounter[", i-1, "] == 0) {\n",
+             paste(ifelse(method[time == t] == "replace", 
+                    paste0("\t\t", var[time == t], " = ", value[time == t], ";"),
+                    paste0("\t\t", var[time == t], " = ", var[time == t], " + ", value[time == t], ";")
+                    ), collapse = "\n"),
+             "\n",
+             "\t\t", "eventcounter[", i-1, "] = 1.;\n",
+             "\t }\n"
+      )
+    })
+  }
+  
   
   mypath <- system.file(package="cOde")
   splinefile <- paste0("cat ", mypath,"/code/splineCreateEvaluate.c")
@@ -187,6 +205,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   cat(paste("static double parms[", dv+dp,"];\n", sep=""))
   cat(paste("static double forc[", di,"];\n", sep=""))
   cat(paste("static double cons[", dc,"];\n", sep=""))
+  cat(paste("static double eventcounter[", length(eventsfn), "];\n", sep = ""))
   cat("static double range[2];\n")
   cat("\n")
   cat(paste("#define nGridpoints",nGridpoints,"\n"))
@@ -207,6 +226,9 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   cat(paste0("void ", modelname, "_initmod(void (* odeparms)(int *, double *)) {\n"))
   cat(paste("\t int N=", dv+dp,";\n",sep=""))
   cat("\t odeparms(&N, parms);\n")
+  if (!is.null(events)) {
+    cat("\t for(int i=0; i<", length(eventsfn), "; ++i) eventcounter[i] = 0;\n", sep = "")
+  }
   cat("}\n")
   cat("\n")
   cat(paste0("void ", modelname, "_initforc(void (* odeforcs)(int *, double *)) {\n"))
@@ -303,6 +325,18 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
     cat("\n")
     cat("}\n")
     cat("\n")
+    
+  }
+  
+  if (!is.null(events)) {
+    
+    cat("/** Event function **/\n")
+    cat(paste0("void ", modelname, "_myevent(int *n, double *t, double *y) {\n"))
+    cat("\n")
+    cat(eventsfn, sep = "\n")
+    cat("\n")
+    cat("}\n")
+    
     
   }
   
@@ -859,17 +893,34 @@ odeC <- function(y, times, func, parms, ...) {
     return(out)
   }
   
-  # deSolve
+  ## deSolve ----------------------------------------------------------------------
   nGridpoints <- attr(func, "nGridpoints")
   modelname <- attr(func, "modelname")
+  
+  # Evaluate initial values and parameters
+  y <- y[attr(func, "variables")]
+  parms <- parms[attr(func, "parameters")]
+  parms <- c(parms, rep(0, length(y)))
+  
+  # First handle events to get additional time points
+  events <- attr(func, "events")
+  eventlist <- NULL
+  if (!is.null(events)) {
+    
+    eventfunc <- paste(func, "myevent", sep = "_")
+    time.expr <- parse(text = paste0("c(", paste(as.character(events[["time"]]), collapse = ", "), ")"))
+    # evaluate event parameters and times
+    eventtime <- with(as.list(parms), eval(time.expr))
+    eventlist <- list(func = eventfunc, time = sort(eventtime))
+    
+  }
+  
+  
+  #times <- sort(union(times, eventlist[["time"]]))
   times.inner <- seq(min(c(times, 0)), max(times), len=nGridpoints)
   times.inner <- sort(unique(c(times, times.inner)))
   which.times <- match(times, times.inner)
   yout <- c(attr(func, "forcings"), names(attr(func, "outputs")))
-  
-  y <- y[attr(func, "variables")]
-  parms <- parms[attr(func, "parameters")]
-  parms <- c(parms, rep(0, length(y)))
   
   arglist <- list(y = y, times = times.inner, func = paste0(func, "_derivs"), parms = parms, dllname = modelname, initfunc = paste0(func, "_initmod"))
   
@@ -897,25 +948,15 @@ odeC <- function(y, times, func, parms, ...) {
   if (!is.null(yout)) {
     arglist <- c(arglist, list(nout = length(yout), outnames = yout))
   }
-  
-  if (!is.null(attr(func, "events"))) {
-    events <- attr(func, "events")
-    # evaluate event parameters and times
-    events <- with(as.list(parms), {
-      data.frame(var = events[["var"]], time = eval(events[["time"]]),
-                 value = eval(events[["value"]]), method = events[["method"]]
-      )
-    })
-  }
+   
   
   # Replace arguments and add new ones
   moreargs <- list(...)
-  if(any(names(moreargs)=="forcings") & attr(func, "fcontrol") == "einspline") 
-    moreargs <- moreargs[-which(names(moreargs) == "forcings")]
-  
-  
-  
-  
+  if(length(moreargs) > 0) {
+    if (any(names(moreargs)=="forcings") & attr(func, "fcontrol") == "einspline") {
+      moreargs <- moreargs[-which(names(moreargs) == "forcings")]
+    }
+  }
   
   i <- match(names(moreargs), names(arglist))
   is.overlap <- which(!is.na(i))
@@ -923,10 +964,9 @@ odeC <- function(y, times, func, parms, ...) {
   arglist[i[is.overlap]] <- moreargs[is.overlap]
   arglist <- c(arglist, moreargs[is.new])
   
-  # Merge events
-  arglist[["events"]][["data"]] <- unique(rbind(events, arglist[["events"]][["data"]]))
-  arglist[["events"]][["data"]] <- arglist[["events"]][["data"]][order(arglist[["events"]][["data"]][["time"]]),]
-  
+  # Merge events and event time points
+  arglist[["events"]] <- c(arglist[["events"]], eventlist)
+   
   
   #loadDLL(func)
   

@@ -67,17 +67,9 @@ f <- c(
 
 # Define parametric events
 events.pars <- data.frame(
-  var = c("u_degrade", "u_degrade"),
-  time = c("t_on", "t_off"),
-  value = c("plus", "minus"),
-  method = "replace"
-)
-
-# Define events with fixed values
-events.fixed <- data.frame(
-  var = "u_build",
-  time = 2,
-  value = 2,
+  var = c("u_degrade", "u_degrade", "u_build"),
+  time = c("t_on", "t_off", "2"),
+  value = c("plus", "minus", "2"),
   method = "replace"
 )
 
@@ -87,10 +79,11 @@ func <- funC(f, forcings = NULL, events = events.pars, modelname = "test",
 
 # Set Parameters
 yini <- c(O3 = 0, O2 = 3, O = 2, u_build = 1, u_degrade = 1)
-pars <- c(build_O3 = 1/6, decay_O3 = 1, t_on = 3, t_off = 6, plus = 3, minus = 1)
+times <- seq(0, 8, by = .1)
+pars <- c(build_O3 = 1/6, decay_O3 = 1, t_on = exp(rnorm(1, 0)), t_off = 6, plus = 3, minus = 1)
 
 # Solve ODE with additional fixed-value events
-out <- odeC(y = yini, times = times, func = func, parms = pars, events = list(data = events.fixed))
+out <- odeC(y = yini, times = times, func = func, parms = pars)
 
 
 # Plot solution
