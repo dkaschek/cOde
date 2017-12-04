@@ -205,7 +205,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   cat(paste("static double parms[", dv+dp,"];\n", sep=""))
   cat(paste("static double forc[", di,"];\n", sep=""))
   cat(paste("static double cons[", dc,"];\n", sep=""))
-  cat(paste("static double eventcounter[", length(eventsfn), "];\n", sep = ""))
+  if (!is.null(events)) cat(paste("static double eventcounter[", length(eventsfn), "];\n", sep = ""))
   cat("static double range[2];\n")
   cat("\n")
   cat(paste("#define nGridpoints",nGridpoints,"\n"))
@@ -911,7 +911,7 @@ odeC <- function(y, times, func, parms, ...) {
     time.expr <- parse(text = paste0("c(", paste(as.character(events[["time"]]), collapse = ", "), ")"))
     # evaluate event parameters and times
     eventtime <- with(as.list(parms), eval(time.expr))
-    eventlist <- list(func = eventfunc, time = sort(eventtime))
+    eventlist <- list(func = eventfunc, time = sort(unique(eventtime)))
     
   }
   
