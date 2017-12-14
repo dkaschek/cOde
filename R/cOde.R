@@ -971,8 +971,9 @@ odeC <- function(y, times, func, parms, ...) {
   #loadDLL(func)
   
   out <- do.call(deSolve::ode, arglist)
-  out.index <- unique(c(which.times[which.times <= nrow(out)], nrow(out)))
-  out <- matrix(out[out.index, ], nrow = length(out.index), dimnames = list(NULL, colnames(out)))
+  out <- out[out[, 1] >= min(times.inner) & out[, 1] <= max(times.inner), ]
+  #out.index <- unique(c(which.times[which.times <= nrow(out)], nrow(out)))
+  #out <- matrix(out[out.index, ], nrow = length(out.index), dimnames = list(NULL, colnames(out)))
   
   return(out)
   
