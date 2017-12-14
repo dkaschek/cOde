@@ -84,8 +84,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     events.addon <- do.call(rbind, lapply(1:nrow(events), function(i) {
       # Get variable, time and value
       var <- as.character(events[["var"]][i])
-      tvar <- getSymbols(as.character(events[["time"]][i]))
-      eventpar <- getSymbols(as.character(events[["value"]][i]))
+      tvar <- intersect(getSymbols(as.character(events[["time"]][i])), parameters)
+      eventpar <- intersect(getSymbols(as.character(events[["value"]][i])), parameters)
       # Events for sensitivities with respect to time parameter, first
       x.tvar <- NULL
       if (length(tvar) > 0) {
