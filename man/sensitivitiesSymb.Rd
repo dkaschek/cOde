@@ -5,7 +5,7 @@
 \title{Compute sensitivity equations of a function symbolically}
 \usage{
 sensitivitiesSymb(f, states = names(f), parameters = NULL, inputs = NULL,
-  reduce = FALSE)
+  events = NULL, reduce = FALSE)
 }
 \arguments{
 \item{f}{named vector of type character, the functions}
@@ -18,6 +18,13 @@ values of these parameters}
 
 \item{inputs}{Character vector. Input functions or forcings. They are excluded from
 the computation of sensitivities.}
+
+\item{events}{data.frame of events with columns "var" (character, the name of the state to be
+affected), "time" (numeric or character, time point), 
+"value" (numeric or character, value), "method" (character, either
+"replace" or "add"). See \link[deSolve]{events}.
+Within \code{sensitivitiesSymb()} a \code{data.frame} of additional events is generated to 
+reset the sensitivities appropriately, depending on the event method.}
 
 \item{reduce}{Logical. Attempts to determine vanishing sensitivities, removes their
 equations and replaces their right-hand side occurences by 0.}

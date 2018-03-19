@@ -4,7 +4,7 @@
 \alias{funC}
 \title{Generate C code for a function and compile it}
 \usage{
-funC(f, forcings = NULL, fixed = NULL, outputs = NULL,
+funC(f, forcings = NULL, events = NULL, fixed = NULL, outputs = NULL,
   jacobian = c("none", "full", "inz.lsodes", "jacvec.lsodes"),
   rootfunc = NULL, boundary = NULL, compile = TRUE,
   fcontrol = c("nospline", "einspline"), nGridpoints = 500,
@@ -17,6 +17,14 @@ You may use the key word \code{time} in your equations for non-autonomous
 ODEs.}
 
 \item{forcings}{Character vector with the names of the forcings}
+
+\item{events}{data.frame of events with columns "var" (character, the name of the state to be
+affected), "time" (numeric or character, time point), 
+"value" (numeric or character, value), "method" (character, either
+"replace" or "add"). See \link[deSolve]{events}. If "var" and "time" are
+characters, their values need to be speciefied in the parameter vector
+when calling \code{\link{odeC}}. An event function is generated and compiled
+with the ODE.}
 
 \item{fixed}{character vector with the names of parameters (initial values
 and dynamic) for which no sensitivities are required (will speed up the

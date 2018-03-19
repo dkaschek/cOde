@@ -133,6 +133,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   ## ------------ deSolve: write code -------------
   
   deSolveSyntax <- function(f) {
+    f <- replaceNumbers(f)
     f <- replaceOperation("^", "pow", f)
     f <- replaceOperation("**", "pow", f)
     f <- replaceSymbols(variables, paste0("y[", 1:length(variables) - 1, "]"), f)

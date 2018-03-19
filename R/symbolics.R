@@ -43,6 +43,39 @@ replaceSymbols <- function(what, by, x) {
   
 }
 
+#' Replace integer number in a character vector by other double
+#' 
+#' @param x vector of type character, the object where the replacement should take place
+#' @return vector of type character, conserves the names of x.
+#' @export
+replaceNumbers <- function(x) {
+  
+  xOrig <- x
+  is.not.zero <- which(x!="0")
+  x <- x[is.not.zero]
+  
+  mynames <- names(x)
+  
+  x.parsed <- parse(text = x, keep.source = TRUE)
+  data <- utils::getParseData(x.parsed)
+  data$text[data$token == "NUM_CONST"] <- format(as.numeric(data$text[data$token == "NUM_CONST"]), nsmall = 1)
+  breaks <- c(0, which(diff(data$line1) == 1), length(data$line1))
+  
+  out <- lapply(1:(length(breaks)-1), function(i) {
+    
+    paste(data$text[(breaks[i]+1):(breaks[i+1])], collapse="")
+    
+  })
+  
+  names(out) <- mynames
+  out <- unlist(out)
+  
+  xOrig[is.not.zero] <- out
+  
+  return(xOrig)
+  
+  
+}
 
 
 #' Replace a binary operator in a string by a function
@@ -82,8 +115,7 @@ replaceOperation <- function(what, by, x) {
     parsData <- utils::getParseData(parsed)
     pres <- parsData[parsData$terminal==TRUE,]
     
-    
-    #add negative signs to numeric constants
+     #add negative signs to numeric constants
     signs <- pres[1:(nrow(pres)-1), "token"]
     numbers <- pres[2:nrow(pres), "token"]
     index <- which(signs == "'-'" & numbers == "NUM_CONST")
