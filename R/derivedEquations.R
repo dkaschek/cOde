@@ -45,6 +45,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     pars <- parameters[!parameters%in%inputs]
   }
   
+  if (length(states) == 0 & length(pars) == 0)
+    stop("Attempt to compute sensitivities although both states and parameters had length 0.")
   
   Dyf <- jacobianSymb(f, variables)
   Dpf <- jacobianSymb(f, pars)
@@ -54,22 +56,32 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   ds <- length(states)
   dp <- length(pars)
   
-  # generate sensitivity variable names and names with zero entries
-  mygridY0 <- expand.grid.alt(variables, states)
-  mygridP <- expand.grid.alt(variables, pars)
+  # generate sensitivity variable names and names with zero entries then
+  # write sensitivity equations in matrix form
+  Dy0y <- Dpy <- NULL
+  sensParVariablesY0 <- sensParVariablesP <- NULL
   
-  sensParVariablesY0 <- apply(mygridY0, 1, paste, collapse = ".")
-  sensParVariablesP <- apply(mygridP, 1, paste, collapse = ".")
-
-  # Write sensitivity equations in matrix form
-  Dy0y <- matrix(sensParVariablesY0, ncol = ds, nrow = dv)
-  Dpy <- matrix(sensParVariablesP, ncol = dp, nrow = dv)
+  if (ds > 0) {
+    mygridY0 <- expand.grid.alt(variables, states)
+    sensParVariablesY0 <- apply(mygridY0, 1, paste, collapse = ".")
+    Dy0y <- matrix(sensParVariablesY0, ncol = ds, nrow = dv)
+  }
+  
+  if (dp > 0) {
+    mygridP <- expand.grid.alt(variables, pars)
+    sensParVariablesP <- apply(mygridP, 1, paste, collapse = ".")
+    Dpy <- matrix(sensParVariablesP, ncol = dp, nrow = dv)
+  }
   
   
+  gl <- NULL
+  if (!is.null(Dy0y)) {
+    gl <- c(gl, as.vector(prodSymb(matrix(Dyf, ncol = dv), Dy0y)))
+  }
+  if (!is.null(Dpy)) {
+    gl <- c(gl, as.vector(sumSymb(prodSymb(matrix(Dyf, ncol = dv), Dpy), matrix(Dpf, nrow = dv))))
+  }
   
-  gl <- c(as.vector(prodSymb(matrix(Dyf, ncol = dv), Dy0y)), 
-          as.vector(sumSymb(prodSymb(matrix(Dyf, ncol = dv), Dpy), matrix(Dpf, nrow = dv))))
- 
   newfun <- gl
   newvariables.grid <- expand.grid.alt(variables, c(states, pars))
   newvariables <- apply(newvariables.grid, 1, paste, collapse=".")
