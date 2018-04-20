@@ -8,7 +8,8 @@ Depends:
 Suggests:
     deSolve,
     bvpSolve
-Imports: Rcpp (>= 0.11.3)
+Imports: Rcpp (>= 0.11.3),
+    digest
 LinkingTo: Rcpp, RcppArmadillo
 SystemRequirements: C++11
 Date: 2017-08-23

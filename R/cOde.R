@@ -48,6 +48,9 @@
 #'   
 #' @return the name of the generated shared object file together with a number
 #'   of attributes
+#'
+#' @importFrom digest digest
+#'
 #' @examples 
 #' \dontrun{
 #' # Exponential decay plus constant supply
@@ -81,7 +84,8 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   
   if("names"%in%names(myattr)) myattr <- myattr[-which(names(myattr)=="names")]
   
-  if(is.null(modelname)) modelname <- paste(c("f", sample(c(letters, 0:9), 8, TRUE)), collapse="")
+  if(is.null(modelname)) modelname <- "f"
+  modelname <- paste(c(modelname, substr(digest(as.list(formals())),1,8)), collapse="_")
   dllname <- modelname
   
   ## If boundary conditions are given, sort for leftbc first
