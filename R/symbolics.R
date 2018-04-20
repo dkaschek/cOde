@@ -245,7 +245,10 @@ replaceOperation <- function(what, by, x) {
 #' @importFrom stats D
 jacobianSymb <- function(f, variables=NULL) {
   
-  if(is.null(variables)) variables <- names(f)
+  
+  if (is.null(variables)) variables <- names(f)
+  if (length(variables) == 0) return(character())
+  
   jacnames <- apply(expand.grid.alt(names(f), variables), 1, paste, collapse=".")
   jacobian <- matrix("0", nrow = length(f), ncol = length(variables))
   
