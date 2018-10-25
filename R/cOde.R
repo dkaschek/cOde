@@ -78,6 +78,10 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
                  verbose = FALSE, solver = c("deSolve", "Sundials")) {
   
   f <- unclass(f)
+  
+  # If f contains line breaks, replace them by ""
+  f <- gsub("\n", "", f)
+  
   constraints <- NULL # Might be an interesting option in the future
   myattr <- attributes(f)
   equations <- f

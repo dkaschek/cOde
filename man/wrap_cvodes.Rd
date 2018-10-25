@@ -4,8 +4,8 @@
 \alias{wrap_cvodes}
 \title{Solve an inital value problem with cvodes.}
 \usage{
-wrap_cvodes(times, states_, parameters_, initSens_, events_, settings, model_,
-  jacobian_, sens_)
+wrap_cvodes(times, states_, parameters_, initSens_, events_, settings,
+  model_, jacobian_, sens_)
 }
 \arguments{
 \item{times}{Numeric vector of time points at which integration results are returned.}
