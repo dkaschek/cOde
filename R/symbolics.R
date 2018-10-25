@@ -294,7 +294,8 @@ jacobianSymb <- function(f, variables=NULL) {
 #' @examples getSymbols(c("A*AB+B^2"))
 #' @export
 getSymbols <- function(char, exclude = NULL) {
-  
+  if (is.null(char))
+    return(NULL)
   char <- char[char!="0"]
   out <- parse(text=char, keep.source = TRUE)
   out <- utils::getParseData(out)
