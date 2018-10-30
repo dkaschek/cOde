@@ -88,7 +88,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   
   if("names"%in%names(myattr)) myattr <- myattr[-which(names(myattr)=="names")]
   
-  if(is.null(modelname)) modelname <- paste(c(modelname, substr(digest(list(f, forcings, events, fixed, outputs, solver)),1,8)), collapse="_")
+  if(is.null(modelname)) modelname <- paste(c("f", sample(c(letters, 0:9), 8, TRUE)), collapse="")
   dllname <- modelname
   
   ## If boundary conditions are given, sort for leftbc first

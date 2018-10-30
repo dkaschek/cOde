@@ -9,8 +9,7 @@ Suggests:
     deSolve,
     bvpSolve,
     testthat
-Imports: Rcpp (>= 0.11.3),
-    digest
+Imports: Rcpp (>= 0.11.3)
 LinkingTo: Rcpp, RcppArmadillo
 SystemRequirements: C++11
 Date: 2017-08-23
