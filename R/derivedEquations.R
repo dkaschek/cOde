@@ -102,8 +102,9 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       x.tvar <- NULL
       if (length(tvar) > 0) {
         statesNoVar <- setdiff(states, var)
-        x.tvar <- rbind(
-          data.frame(
+        df_noVar <- NULL
+        if (length(statesNoVar) > 0) 
+          df_noVar <- data.frame(
             var   = paste(statesNoVar, tvar, sep = "."),
             time  = events[["time"]][i],
             value = switch(
@@ -111,32 +112,29 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
               replace = paste0("(", jacobianSymb(f[statesNoVar], var), ") * (", as.character(events[["var"]][i]), " - ", as.character(events[["value"]][i]), ")"),
               add     = paste0("(", jacobianSymb(f[statesNoVar], var), ") * (-", as.character(events[["value"]][i]), ")")),
             method = events[["method"]][i],
-            stringsAsFactors = FALSE
-          ),
-          data.frame(
-            var   = paste(var, tvar, sep = "."),
-            time  = events[["time"]][i],
-            value = switch(
-              as.character(events[["method"]][i]),
-              replace = paste0("(", jacobianSymb(f[var], var), ") * (", var ,"-", as.character(events[["value"]][i]), ") - (", f[var], ")"),
-              add     = paste0("(", jacobianSymb(f[var], var), ") * (-", as.character(events[["value"]][i]), ")")),
-            method = events[["method"]][i],
-            stringsAsFactors = FALSE
-          )
-        )
-          
+            stringsAsFactors = FALSE)
+        df_Var <- data.frame(
+          var   = paste(var, tvar, sep = "."), # var is definitely non-zero, thus it doesn't need to be captured
+          time  = events[["time"]][i],
+          value = switch(
+            as.character(events[["method"]][i]),
+            replace = paste0("(", jacobianSymb(f[var], var), ") * (", var ,"-", as.character(events[["value"]][i]), ") - (", f[var], ")"),
+            add     = paste0("(", jacobianSymb(f[var], var), ") * (-", as.character(events[["value"]][i]), ")")),
+          method = events[["method"]][i],
+          stringsAsFactors = FALSE)
+        x.tvar <- rbind(df_noVar, df_Var)
       } 
       # Events for sensitivities of state affected by event, second
       if (length(eventpar) == 0) eventpar <- "-1"
       parsNoTime <- setdiff(c(states, pars), tvar)
-      var.p  <- data.frame(
-        var = paste(var, parsNoTime , sep = "."),
-        time = events[["time"]][i],
-        value = ifelse(parsNoTime == eventpar, 1, 0),
-        method = events[["method"]][i],
-        stringsAsFactors = FALSE
-      )
-      
+      var.p <- NULL
+      if (length(parsNoTime) > 0)
+        var.p  <- data.frame(
+          var = paste(var, parsNoTime , sep = "."),
+          time = events[["time"]][i],
+          value = ifelse(parsNoTime == eventpar, 1, 0),
+          method = events[["method"]][i],
+          stringsAsFactors = FALSE)
       return(rbind(x.tvar, var.p))
       
     }))
