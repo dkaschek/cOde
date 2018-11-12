@@ -58,9 +58,12 @@ legend("topright", legend = c("O3", "O2", "O"), lty=1, col=1:3)
 
 
 f <- c(
-  O3 = " (build_O3 + u_build) * O2 * O - (decay_O3 + u_degrade) * O3",
-  O2 = "-(build_O3 + u_build) * O2 * O + (decay_O3 + u_degrade) * O3",
-  O  = "-(build_O3 + u_build) * O2 * O + (decay_O3 + u_degrade) * O3",
+  O3 = " (build_O3 + u_build) * O2 * O - 
+         (decay_O3 + u_degrade) * O3",
+  O2 = "-(build_O3 + u_build) * O2 * O + 
+         (decay_O3 + u_degrade) * O3",
+  O  = "-(build_O3 + u_build) * O2 * O + 
+         (decay_O3 + u_degrade) * O3",
   u_build = "0",    # piecewise constant
   u_degrade = "0"   # piecewise constant
 )

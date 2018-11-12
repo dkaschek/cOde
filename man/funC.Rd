@@ -4,9 +4,9 @@
 \alias{funC}
 \title{Generate C code for a function and compile it}
 \usage{
-funC(f, forcings = NULL, events = NULL, fixed = NULL, outputs = NULL,
-  jacobian = c("none", "full", "inz.lsodes", "jacvec.lsodes"),
-  rootfunc = NULL, boundary = NULL, compile = TRUE,
+funC(f, forcings = NULL, events = NULL, fixed = NULL,
+  outputs = NULL, jacobian = c("none", "full", "inz.lsodes",
+  "jacvec.lsodes"), rootfunc = NULL, boundary = NULL, compile = TRUE,
   fcontrol = c("nospline", "einspline"), nGridpoints = 500,
   precision = 1e-05, modelname = NULL, verbose = FALSE,
   solver = c("deSolve", "Sundials"))

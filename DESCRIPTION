@@ -7,7 +7,8 @@ Depends:
     R (>= 3.0)
 Suggests:
     deSolve,
-    bvpSolve
+    bvpSolve,
+    testthat
 Imports: Rcpp (>= 0.11.3)
 LinkingTo: Rcpp, RcppArmadillo
 SystemRequirements: C++11
@@ -21,4 +22,4 @@ Description: Generates all necessary C functions allowing the user to work with
     sensitivity analysis. Alternatively to 'deSolve', the Sundials 'CVODES' solver is
     implemented for computation of model sensitivities.
 License: GPL (>= 2)
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
