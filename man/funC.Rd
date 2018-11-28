@@ -64,7 +64,7 @@ and is named <modelname>.c. If \code{NULL}, a random name starting with
 \item{verbose}{Print compiler output to R command line.}
 
 \item{solver}{Select the solver suite as either \code{deSolve} or
-\code{Sundials}. Defaults to \code{deSolve}.}
+\code{Sundials} (not available any more). Defaults to \code{deSolve}.}
 }
 \value{
 the name of the generated shared object file together with a number

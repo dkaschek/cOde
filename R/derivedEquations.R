@@ -28,7 +28,6 @@
 #' additional forcings being necessare to compute \code{chi} and \code{grad}) and "yini" (
 #' The initial values of the sensitivity equations) are returned.
 #' @example inst/examples/example2.R
-#' @example inst/examples/example2_sundials.R
 #' @example inst/examples/example3.R
 #' @export
 sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, events = NULL, reduce = FALSE) {
