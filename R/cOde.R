@@ -173,10 +173,14 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
     eventsfn <- sapply(1:length(time.unique), function(i) {
       t <- time.unique[i]
       paste0("\t if(*t == ", t, " & eventcounter[", i-1, "] == 0) {\n",
-             paste(ifelse(method[time == t] == "replace", 
-                    paste0("\t\t", var[time == t], " = ", value[time == t], ";"),
-                    paste0("\t\t", var[time == t], " = ", var[time == t], " + ", value[time == t], ";")
-                    ), collapse = "\n"),
+             paste(sapply(which(time == t), function(tix) {
+               switch(
+                 method[tix],
+                 replace = paste0("\t\t", var[tix], " = ", value[tix], ";"),
+                 add = paste0("\t\t", var[tix], " = ", var[tix], " + ", value[tix], ";"),
+                 multiply = paste0("\t\t", var[tix], " = (", var[tix], ") * (", value[tix], ");")
+               )
+             }), collapse = "\n"),
              "\n",
              "\t\t", "eventcounter[", i-1, "] = 1.;\n",
              "\t }\n"
