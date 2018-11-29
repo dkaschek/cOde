@@ -159,6 +159,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           )
         }
         
+        d[["stringsAsFactors"]] <- FALSE
         
         return(do.call(rbind, d))
         
@@ -211,6 +212,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           )
         }
         
+        d[["stringsAsFactors"]] <- FALSE
         
         return(do.call(rbind, d))
         
@@ -263,7 +265,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           )
         }
         
-        print(do.call(rbind, d))
+        d[["stringsAsFactors"]] <- FALSE
+        
         
         return(do.call(rbind, d))
         
@@ -280,23 +283,26 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     })
     
     # Overwrite events
-    events <- do.call(rbind, events.addon)
-    rownames(events) <- NULL
+    events <- events.addon
     
     
   }
-  
+ 
+   
   
   # Reduce the sensitivities
-  vanishing <- c(sensParVariablesY0[!(sensParVariablesY0 %in% as.character(events[["var"]][as.character(events[["value"]]) != "0"]))], 
-                 sensParVariablesP[Dpf == "0" & !(sensParVariablesP %in% as.character(events[["var"]][as.character(events[["value"]]) != "0"]))])
+  eventframe <- do.call(rbind, events)
+  vanishing <- c(sensParVariablesY0[!(sensParVariablesY0 %in% as.character(eventframe[["var"]][as.character(eventframe[["value"]]) != "0"]))], 
+                 sensParVariablesP[Dpf == "0" & !(sensParVariablesP %in% as.character(eventframe[["var"]][as.character(eventframe[["value"]]) != "0"]))])
   if(reduce) {
     newfun <- reduceSensitivities(newfun, vanishing)
     is.zero.sens <- names(newfun) %in% attr(newfun,"is.zero")
   } else {
     is.zero.sens <- rep(FALSE, length(newfun))
   }
-  events <- events[!as.character(events[["var"]]) %in% names(newfun)[is.zero.sens], ]
+  events <- lapply(events, function(myevents) {
+    myevents[!as.character(myevents[["var"]]) %in% names(newfun)[is.zero.sens], ]
+  })
   newfun <- newfun[!is.zero.sens]
   output.reduction <- structure(rep(0, length(which(is.zero.sens))), names = newvariables[is.zero.sens])
   
