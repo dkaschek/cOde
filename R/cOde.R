@@ -345,6 +345,8 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
     cat("/** Event function **/\n")
     cat(paste0("void ", modelname, "_myevent(int *n, double *t, double *y) {\n"))
     cat("\n")
+    cat("\t double time = *t;\n")
+    cat("\n")
     cat(eventsfn, sep = "\n")
     cat("\n")
     cat("}\n")
@@ -357,6 +359,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
     cat("/** Root function **/\n")
     cat(paste0("void ", modelname, "_myroot(int *neq, double *t, double *y, int *ng, double *gout, double *out, int *ip ) {\n"))
     cat("\n")
+    cat("\t double time = *t;\n")
     cat("\n")
     if(fcontrol == "einspline") {
       cat("\t double x[nSplines];\n")
