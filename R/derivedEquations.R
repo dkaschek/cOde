@@ -87,7 +87,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   names(newfun) <- newvariables
   
   
-  events.addon <- NULL
+  events.addon <- eventframe <- NULL
   if (!is.null(events)) {
     
     events.addon <- lapply(1:nrow(events), function(i) {
@@ -284,6 +284,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     
     # Overwrite events
     events <- events.addon
+    eventframe <- do.call(rbind, events)
     
     
   }
@@ -291,7 +292,6 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
    
   
   # Reduce the sensitivities
-  eventframe <- do.call(rbind, events)
   vanishing <- c(sensParVariablesY0[!(sensParVariablesY0 %in% as.character(eventframe[["var"]][as.character(eventframe[["value"]]) != "0"]))], 
                  sensParVariablesP[Dpf == "0" & !(sensParVariablesP %in% as.character(eventframe[["var"]][as.character(eventframe[["value"]]) != "0"]))])
   if(reduce) {
