@@ -99,7 +99,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       xone <- as.character(myevent[["var"]])
       tau <- as.character(myevent[["time"]])
       xi <- as.character(myevent[["value"]])
-      xk <- setdiff(states, xone)
+      xk <- setdiff(variables, xone)
       
       
       # Derive some quantities needed for all event methods
