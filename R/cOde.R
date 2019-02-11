@@ -29,9 +29,18 @@
 #' @param fcontrol Character, either \code{"nospline"} (default, forcings are
 #'   handled by deSolve) or \code{"einspline"} (forcings are handled as splines
 #'   within the C code based on the einspline library).
-#' @param nGridpoints Integer, defining the number of grid points between tmin
-#'   and tmax where the ODE is computed in any case. Indicates also the number
-#'   of spline nodes if \code{fcontrol = "einspline"}.
+#' @param nGridpoints Integer, defining for which time points the ODE is evaluated
+#' or the solution is returned: Set \code{-1} to return only the explicitly requested
+#' time points (default). If additional time points are introduced through events, they
+#' will not be returned. Set \code{>= 0} to introduce additional time points between tmin
+#' and tmax where the ODE is evaluated in any case. Additional time points that might be
+#' introduced by events will be returned.
+#' If splines are used with \code{fcontrol = "einspline"}, \code{nGridpoinnts} also
+#' indicates the number of spline nodes.
+#' @param includeTimeZero Logical. Include t = 0 in the integration time points if \code{TRUE} 
+#' (default). Consequently,
+#' integration starts at t = 0 if only positive time points are provided by the user and at
+#' tmin, if also negtive time points are provided.
 #' @param precision Numeric. Only used when \code{fcontrol = "einspline"}.
 #' @param modelname Character. The C file is generated in the working directory
 #'   and is named <modelname>.c. If \code{NULL}, a random name starting with
@@ -74,7 +83,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
                  jacobian=c("none", "full", "inz.lsodes", "jacvec.lsodes"), 
                  rootfunc = NULL, boundary = NULL, 
                  compile = TRUE, fcontrol = c("nospline", "einspline"),
-                 nGridpoints = 500, precision = 1e-5, modelname = NULL,
+                 nGridpoints = -1, includeTimeZero = TRUE, precision = 1e-5, modelname = NULL,
                  verbose = FALSE, solver = c("deSolve", "Sundials")) {
   
   f <- unclass(f)
@@ -451,6 +460,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   attr(f, "boundary") <- boundary
   attr(f, "rootfunc") <- rootfunc
   attr(f, "nGridpoints") <- nGridpoints
+  attr(f, "includeTimeZero") <- includeTimeZero
   attr(f, "fcontrol") <- fcontrol
   attr(f, "solver" ) <- solver
   attr(f, "modelname") <- modelname
@@ -514,8 +524,11 @@ setForcings <- function(func, forcings) {
   inputs <- attr(func, "forcings")
   fcontrol <- attr(func, "fcontrol")
   nGridpoints <- attr(func, "nGridpoints")
+  if (nGridpoints < 2 & fcontrol == "einspline")
+    stop("When using spline interpolation, nGridpoints (the number of spline nodes) must be >= 2.")
+  
   trange <- range(forcings$time)
-  tspan <- seq(trange[1], trange[2], len=nGridpoints)
+  tspan <- seq(trange[1], trange[2], len=max(2, nGridpoints))
   
   times <- NULL
   values <- NULL
@@ -560,7 +573,13 @@ setForcings <- function(func, forcings) {
 #' Interface to ode()
 #' 
 #' @param y named vector of type numeric. Initial values for the integration
-#' @param times vector of type numeric. Integration times
+#' @param times vector of type numeric. Integration times. If \code{includeTimeZero}
+#' is \code{TRUE} (see \link{funC}), the times vector is augmented by t = 0. If
+#' \code{nGridpoints} (see \link{funC}) was set >= 0, uniformly distributed time points
+#' between the first and last time point are introduced and the solution is returned
+#' for these time points, too. Any additional time points that are introduced during
+#' integration (e.g. event time points) are returned unless nGridpoints = -1 (the default).
+#' 
 #' @param func return value from funC()
 #' @param parms named vector of type numeric.
 #' @param ... further arguments going to \code{ode()}
@@ -579,6 +598,7 @@ odeC <- function(y, times, func, parms, ...) {
   
   ## deSolve ----------------------------------------------------------------------
   nGridpoints <- attr(func, "nGridpoints")
+  includeTimeZero <- attr(func, "includeTimeZero")
   modelname <- attr(func, "modelname")
   
   # Evaluate initial values and parameters
@@ -601,9 +621,18 @@ odeC <- function(y, times, func, parms, ...) {
   
   
   #times <- sort(union(times, eventlist[["time"]]))
-  times.inner <- seq(min(c(times, 0)), max(times), len=nGridpoints)
-  times.inner <- sort(unique(c(times, times.inner)))
-  which.times <- match(times, times.inner)
+  times.outer <- times.inner <- times
+  if (includeTimeZero)
+    times.inner <- union(times.inner, 0)
+  if (nGridpoints > 0)
+    times.inner <- union(
+      times.inner, 
+      seq(min(times.inner), max(times.inner), len=nGridpoints)
+    )
+  
+  times.inner <- sort(unique(times.inner))
+  which.times <- match(times.outer, times.inner)
+  
   yout <- c(attr(func, "forcings"), names(attr(func, "outputs")))
   
   arglist <- list(y = y, times = times.inner, func = paste0(func, "_derivs"), parms = parms, dllname = modelname, initfunc = paste0(func, "_initmod"))
@@ -655,9 +684,15 @@ odeC <- function(y, times, func, parms, ...) {
   #loadDLL(func)
   
   out <- do.call(deSolve::ode, arglist)
-  out <- out[out[, 1] >= min(times.inner) & out[, 1] <= max(times.inner), ]
-  #out.index <- unique(c(which.times[which.times <= nrow(out)], nrow(out)))
-  #out <- matrix(out[out.index, ], nrow = length(out.index), dimnames = list(NULL, colnames(out)))
+  
+  if (nGridpoints == -1) {
+    # Return only requested time points
+    out <- out[match(times.outer, out[, 1]), , drop = FALSE]
+  } else {
+    # Return all time points between tmin and tmax (additional time points after
+    # tmax might be introduced by the integrator)
+    out <- out[out[, 1] >= min(times.inner) & out[, 1] <= max(times.inner), ]  
+  }
   
   return(out)
   
@@ -718,8 +753,6 @@ bvptwpC <- function(yini=NULL, x, func, yend=NULL, parms, xguess=NULL, yguess=NU
   if(any(names(moreargs)=="forcings") & attr(func, "fcontrol") == "einspline") 
     moreargs <- moreargs[-which(names(moreargs)=="forcings")]
 
-  print(initforc)
-   
   out <- do.call(bvpSolve::bvptwp, c(moreargs, list(
     x = x, parms = newparms, xguess = xguess, yguess = yguess, posbound=posbound,
     func = paste0(func, "_derivs"), jacfunc = paste0(func, "_jacobian"), bound = paste0(func, "_gsub"), jacbound = paste0(func, "_dgsub"), 

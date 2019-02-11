@@ -9,7 +9,12 @@ odeC(y, times, func, parms, ...)
 \arguments{
 \item{y}{named vector of type numeric. Initial values for the integration}
 
-\item{times}{vector of type numeric. Integration times}
+\item{times}{vector of type numeric. Integration times. If \code{includeTimeZero}
+is \code{TRUE} (see \link{funC}), the times vector is augmented by t = 0. If
+\code{nGridpoints} (see \link{funC}) was set >= 0, uniformly distributed time points
+between the first and last time point are introduced and the solution is returned
+for these time points, too. Any additional time points that are introduced during
+integration (e.g. event time points) are returned unless nGridpoints = -1 (the default).}
 
 \item{func}{return value from funC()}
 
@@ -107,7 +112,7 @@ events.pars <- data.frame(
 
 # Declar parameteric events when generating funC object
 func <- funC(f, forcings = NULL, events = events.pars, modelname = "test", 
-             fcontrol = "nospline", nGridpoints = 10)
+             fcontrol = "nospline", nGridpoints = -1)
 
 # Set Parameters
 yini <- c(O3 = 0, O2 = 3, O = 2, u_build = 1, u_degrade = 1)
