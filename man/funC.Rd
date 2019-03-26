@@ -7,9 +7,9 @@
 funC(f, forcings = NULL, events = NULL, fixed = NULL,
   outputs = NULL, jacobian = c("none", "full", "inz.lsodes",
   "jacvec.lsodes"), rootfunc = NULL, boundary = NULL, compile = TRUE,
-  fcontrol = c("nospline", "einspline"), nGridpoints = 500,
-  precision = 1e-05, modelname = NULL, verbose = FALSE,
-  solver = c("deSolve", "Sundials"))
+  fcontrol = c("nospline", "einspline"), nGridpoints = -1,
+  includeTimeZero = TRUE, precision = 1e-05, modelname = NULL,
+  verbose = FALSE, solver = c("deSolve", "Sundials"))
 }
 \arguments{
 \item{f}{Named character vector containing the right-hand sides of the ODE.
@@ -51,9 +51,19 @@ boundary condition set-up. NULL if not a boundary value problem}
 handled by deSolve) or \code{"einspline"} (forcings are handled as splines
 within the C code based on the einspline library).}
 
-\item{nGridpoints}{Integer, defining the number of grid points between tmin
-and tmax where the ODE is computed in any case. Indicates also the number
-of spline nodes if \code{fcontrol = "einspline"}.}
+\item{nGridpoints}{Integer, defining for which time points the ODE is evaluated
+or the solution is returned: Set \code{-1} to return only the explicitly requested
+time points (default). If additional time points are introduced through events, they
+will not be returned. Set \code{>= 0} to introduce additional time points between tmin
+and tmax where the ODE is evaluated in any case. Additional time points that might be
+introduced by events will be returned.
+If splines are used with \code{fcontrol = "einspline"}, \code{nGridpoinnts} also
+indicates the number of spline nodes.}
+
+\item{includeTimeZero}{Logical. Include t = 0 in the integration time points if \code{TRUE} 
+(default). Consequently,
+integration starts at t = 0 if only positive time points are provided by the user and at
+tmin, if also negtive time points are provided.}
 
 \item{precision}{Numeric. Only used when \code{fcontrol = "einspline"}.}
 
