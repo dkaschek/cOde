@@ -32,6 +32,7 @@
 #' @export
 sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, events = NULL, reduce = FALSE) {
   
+  
   variables <- names(f)
   states <- states[!states%in%inputs]
   
@@ -284,16 +285,49 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     
     # Overwrite events
     events <- events.addon
+    
+    # Add rownames that allow to trace back records in eventframe to the list of events
+    for (i in seq_along(events)) {
+      rownames(events[[i]]) <- paste(i, seq_along(events[[i]][[1]]), sep = "_")
+    }
+    
+    # Make sure all columns are characters
     eventframe <- do.call(rbind, events)
+    for (i in seq_along(eventframe)) {
+      eventframe[[i]] <- as.character(eventframe[[i]])
+    }
+    
+    
+    # Get (numeric) values in eventframe value column
+    symbols <- getSymbols(eventframe$value)
+    symbols.vals <- structure(rnorm(length(symbols)), names = symbols)
+    values.char <- paste0("c(", paste(eventframe$value, collapse = ", "), ")")
+    values.vals <- with(as.list(symbols.vals), eval(parse(text = values.char)))
+    
+    # Get sensitivities which are initialized by 0 and do not change due to additional events
+    is_ini_zero <- sapply(strsplit(eventframe$var, ".", fixed = TRUE), function(x) x[1] != x[2])
+    var_reset_to_zero <- sapply(unique(eventframe$var[is_ini_zero]), function(myvar) {
+      all(values.vals[eventframe$var == myvar] == 0)
+    })
+    
+    # Determine records which can be removed from eventframe either because they are neutral or the variable can completely be removed
+    is_neutral <- (eventframe$method == "add" & values.vals == 0)
+    
+    # Reduce eventframe
+    eventframe <- eventframe[!is_neutral,]
+    
+    # Reduce events (by name matching)
+    events <- lapply(events, function(e) e[rownames(e) %in% rownames(eventframe), ])
     
     
   }
  
-   
   
   # Reduce the sensitivities
-  vanishing <- c(sensParVariablesY0[!(sensParVariablesY0 %in% as.character(eventframe[["var"]][as.character(eventframe[["value"]]) != "0"]))], 
-                 sensParVariablesP[Dpf == "0" & !(sensParVariablesP %in% as.character(eventframe[["var"]][as.character(eventframe[["value"]]) != "0"]))])
+  #vanishing <- c(sensParVariablesY0[!(sensParVariablesY0 %in% eventframe[["var"]][eventframe[["value"]] != "0"])], 
+  #               sensParVariablesP[Dpf == "0" & !(sensParVariablesP %in% eventframe[["var"]][eventframe[["value"]] != "0"])])
+  vanishing <- setdiff(c(sensParVariablesY0, sensParVariablesP[Dpf == "0"]), eventframe[["var"]])
+  
   if(reduce) {
     newfun <- reduceSensitivities(newfun, vanishing)
     is.zero.sens <- names(newfun) %in% attr(newfun,"is.zero")
@@ -306,7 +340,6 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   newfun <- newfun[!is.zero.sens]
   output.reduction <- structure(rep(0, length(which(is.zero.sens))), names = newvariables[is.zero.sens])
   
-    
   # Append initial values
   initials <- rep(0, length(newfun))
   names(initials) <- newvariables[!is.zero.sens]
