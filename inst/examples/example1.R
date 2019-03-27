@@ -78,7 +78,7 @@ events.pars <- data.frame(
 
 # Declar parameteric events when generating funC object
 func <- funC(f, forcings = NULL, events = events.pars, modelname = "test", 
-             fcontrol = "nospline", nGridpoints = 10)
+             fcontrol = "nospline", nGridpoints = -1)
 
 # Set Parameters
 yini <- c(O3 = 0, O2 = 3, O = 2, u_build = 1, u_degrade = 1)
