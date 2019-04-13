@@ -300,7 +300,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     
     # Get (numeric) values in eventframe value column
     symbols <- getSymbols(eventframe$value)
-    symbols.vals <- structure(rnorm(length(symbols)), names = symbols)
+    symbols.vals <- structure(stats::rnorm(length(symbols)), names = symbols)
     values.char <- paste0("c(", paste(eventframe$value, collapse = ", "), ")")
     values.vals <- with(as.list(symbols.vals), eval(parse(text = values.char)))
     
