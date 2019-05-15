@@ -32,6 +32,8 @@
 #' @export
 sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = NULL, events = NULL, reduce = FALSE) {
   
+  # If f contains line breaks, replace them by ""
+  f <- gsub("\n", "", f)
   
   variables <- names(f)
   states <- states[!states%in%inputs]
@@ -39,7 +41,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   if (is.null(parameters)) {
     pars <- getSymbols(c(f,
                          as.character(events[["value"]]),
-                         as.character(events[["time"]])),
+                         as.character(events[["time"]]),
+                         as.character(events[["root"]])),
                        exclude = c(variables, inputs, "time"))
   } else {
     pars <- parameters[!parameters%in%inputs]
@@ -100,7 +103,10 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       xone <- as.character(myevent[["var"]])
       tau <- as.character(myevent[["time"]])
       xi <- as.character(myevent[["value"]])
+      root <- as.character(myevent[["root"]])
       xk <- setdiff(variables, xone)
+      rootstate <- intersect(getSymbols(root), variables)[1]
+      rootpar <- intersect(getSymbols(root), pars)[1]
       
       
       # Derive some quantities needed for all event methods
@@ -109,6 +115,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       Jk1 <- Ji1[paste0(xk, ".", xone)]
       f1 <- f[xone]
       fk <- f[xk]
+      fr <- f[rootstate]
       
       # Collect ODE parameters 
       odepars <- c(states, pars)
@@ -126,6 +133,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = 0,
+            root = root,
             method = "replace"
           )
         }
@@ -136,6 +144,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = paste0("(", J11, ")*(", xone, "- (", xi, ")) - (", f1, ")"),
+            root = root,
             method = "add"
           )
         }
@@ -146,6 +155,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = paste0("(", Jk1, ")*(", xone, "- (", xi, "))"),
+            root = root,
             method = "add"
           )
         }
@@ -156,6 +166,29 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = 1,
+            root = root,
+            method = "add"
+          )
+        }
+        
+        vars <- intersect(paste0(xone, ".", rootpar), newvariables)
+        if (length(vars) > 0) {
+          d[[2]] <- data.frame(
+            var = vars,
+            time = tau,
+            value = paste0("((", J11, ")*(", xone, "- (", xi, ")) - (", f1, "))/(", fr, ")"),
+            root = root,
+            method = "add"
+          )
+        }
+        
+        vars <- intersect(paste0(xk, ".", rootpar), newvariables)
+        if (length(vars) > 0) {
+          d[[3]] <- data.frame(
+            var = vars,
+            time = tau,
+            value = paste0("((", Jk1, ")*(", xone, "- (", xi, ")))/(", fr, ")"),
+            root = root,
             method = "add"
           )
         }
@@ -179,6 +212,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = 0,
+            root = root,
             method = "add"
           )
         }
@@ -189,6 +223,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = paste0("-(", J11, ") * (", xi, ")"),
+            root = root,
             method = "add"
           )
         }
@@ -199,6 +234,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = paste0("-(", Jk1, ") * (", xi, ")"),
+            root = root,
             method = "add"
           )
         }
@@ -209,9 +245,33 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = 1,
+            root = root,
             method = "add"
           )
         }
+        
+        vars <- intersect(paste0(xone, ".", rootpar), newvariables)
+        if (length(vars) > 0) {
+          d[[2]] <- data.frame(
+            var = vars,
+            time = tau,
+            value = paste0("(-(", J11, ") * (", xi, "))/(", fr, ")"),
+            root = root,
+            method = "add"
+          )
+        }
+        
+        vars <- intersect(paste0(xk, ".", rootpar), newvariables)
+        if (length(vars) > 0) {
+          d[[3]] <- data.frame(
+            var = vars,
+            time = tau,
+            value = paste0("(-(", Jk1, ") * (", xi, "))/(", fr, ")"),
+            root = root,
+            method = "add"
+          )
+        }
+        
         
         d[["stringsAsFactors"]] <- FALSE
         
@@ -232,6 +292,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = xi,
+            root = root,
             method = "multiply" 
           )
         }
@@ -242,6 +303,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = paste0("(1 - (", xi, "))*((", J11, ")*(", xone, ") - (", f1, "))"),
+            root = root,
             method = "add"
           )
         }
@@ -252,6 +314,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = paste0("(1 - (", xi, "))*((", Jk1, ")*(", xone, "))"),
+            root = root,
             method = "add"
           )
         }
@@ -262,11 +325,35 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = xone,
+            root = root,
+            method = "add"
+          )
+        }
+        
+        vars <- intersect(paste0(xone, ".", rootpar), newvariables)
+        if (length(vars) > 0) {
+          d[[2]] <- data.frame(
+            var = vars,
+            time = tau,
+            value = paste0("((1 - (", xi, "))*((", J11, ")*(", xone, ") - (", f1, ")))/(", fr, ")"),
+            root = root,
+            method = "add"
+          )
+        }
+        
+        vars <- intersect(paste0(xk, ".", rootpar), newvariables)
+        if (length(vars) > 0) {
+          d[[3]] <- data.frame(
+            var = vars,
+            time = tau,
+            value = paste0("((1 - (", xi, "))*((", Jk1, ")*(", xone, ")))/(", fr, ")"),
+            root = root,
             method = "add"
           )
         }
         
         d[["stringsAsFactors"]] <- FALSE
+        
         
         
         return(do.call(rbind, d))
@@ -318,6 +405,14 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     
     # Reduce events (by name matching)
     events <- lapply(events, function(e) e[rownames(e) %in% rownames(eventframe), ])
+    
+    # Check if any root-like events
+    events <- lapply(events, function(e){
+      if (all(is.na(eventframe[["root"]]))) {
+        e <- e[-match("root", names(e))]
+      }
+      return(e)
+    })
     
     
   }

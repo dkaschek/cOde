@@ -105,6 +105,62 @@ matplot(t2, M2, type="l", lty=1, col=1:3, xlab="time", ylab="value",
 legend("topright", legend = c("O3", "O2", "O"), lty=1, col=1:3)
 
 
+######################################################################
+## Ozone formation and decay, modified by events triggered by root
+######################################################################
+
+
+f <- c(
+  O3 = " (build_O3 + u_build) * O2 * O - 
+         (decay_O3 + u_degrade) * O3",
+  O2 = "-(build_O3 + u_build) * O2 * O + 
+         (decay_O3 + u_degrade) * O3",
+  O  = "-(build_O3 + u_build) * O2 * O + 
+         (decay_O3 + u_degrade) * O3",
+  u_build = "0",    # piecewise constant
+  u_degrade = "0"   # piecewise constant
+)
+
+# Define parametric events
+events.pars <- data.frame(
+  var = c("u_degrade", "u_degrade", "u_build", "O3"),
+  time = c("t_on", "t_off", "2", NA),
+  value = c("plus", "minus", "2", "0"),
+  root = c(NA, NA, NA, "O3 - thres_O3"),
+  method = "replace"
+)
+
+# Declar parameteric events when generating funC object
+func <- funC(f, forcings = NULL, events = events.pars, modelname = "test", 
+             fcontrol = "nospline", nGridpoints = -1)
+
+# Set Parameters
+yini <- c(O3 = 0, O2 = 3, O = 2, u_build = 1, u_degrade = 1)
+times <- seq(0, 8, by = .01)
+pars <- c(build_O3 = 1/6, decay_O3 = 1, 
+          t_on = exp(rnorm(1, 0)), t_off = 6, plus = 3, minus = 1, 
+          thres_O3 = 0.5)
+
+# Solve ODE with additional fixed-value events
+out <- odeC(y = yini, times = times, func = func, parms = pars)
+
+
+# Plot solution
+
+par(mfcol=c(1,2))
+t2 <- out[,1]
+M2 <- out[,2:4]
+M3 <- out[,5:6]
+
+
+matplot(t2, M3, type="l", lty=2, col=1:2, xlab="time", ylab="value", 
+        main="events")
+legend("topleft", legend = c("u_build", "u_degrade"), lty=1, col=1:2)
+matplot(t2, M2, type="l", lty=1, col=1:3, xlab="time", ylab="value", 
+        main="response")
+legend("topright", legend = c("O3", "O2", "O"), lty=1, col=1:3)
+
+
 
 
 }
