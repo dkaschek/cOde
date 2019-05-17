@@ -94,6 +94,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   events.addon <- eventframe <- NULL
   if (!is.null(events)) {
     
+    if (is.null(events[["root"]])) events[["root"]] <- NA
+    
     events.addon <- lapply(1:nrow(events), function(i) {
       
       # A data frame representing the i'th event
@@ -106,8 +108,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       root <- as.character(myevent[["root"]])
       xk <- setdiff(variables, xone)
       rootstate <- intersect(getSymbols(root), variables)[1]
+      norootstate <- setdiff(variables, rootstate)
       rootpar <- intersect(getSymbols(root), pars)[1]
-      
       
       # Derive some quantities needed for all event methods
       Ji1 <- jacobianSymb(f, variables = xone)
@@ -128,7 +130,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
         d <- list()
         
         vars <- intersect(paste0(xone, ".", odepars), newvariables)
-        if (length(vars) > 0) {
+        if (length(vars) > 0 & is.na(root)) {
           d[[1]] <- data.frame(
             var = vars,
             time = tau,
@@ -138,9 +140,22 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           )
         }
         
+        # Resetting of tau sensitivities for multiple roots
+        vars <- intersect(paste0(c(xone, xk), ".", tau), newvariables)
+        if (length(vars) > 0 & !is.na(root)) {
+          d[[2]] <- data.frame(
+            var = vars,
+            time = tau,
+            value = 0,
+            root = root,
+            method = "replace"
+          )
+        }
+        
+        
         vars <- intersect(paste0(xone, ".", tau), newvariables)
         if (length(vars) > 0) {
-          d[[2]] <- data.frame(
+          d[[3]] <- data.frame(
             var = vars,
             time = tau,
             value = paste0("(", J11, ")*(", xone, "- (", xi, ")) - (", f1, ")"),
@@ -151,7 +166,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           
         vars <- intersect(paste0(xk, ".", tau), newvariables)
         if (length(vars) > 0) {
-          d[[3]] <- data.frame(
+          d[[4]] <- data.frame(
             var = vars,
             time = tau,
             value = paste0("(", Jk1, ")*(", xone, "- (", xi, "))"),
@@ -162,7 +177,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
         
         vars <- intersect(paste0(xone, ".", xi), newvariables)
         if (length(vars) > 0) {
-          d[[4]] <- data.frame(
+          d[[5]] <- data.frame(
             var = vars,
             time = tau,
             value = 1,
@@ -171,27 +186,46 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           )
         }
         
-        vars <- intersect(paste0(xone, ".", rootpar), newvariables)
+        
+        vars <- intersect(paste0(c(xone, xk), ".", rootpar), newvariables)
         if (length(vars) > 0) {
-          d[[2]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = paste0("((", J11, ")*(", xone, "- (", xi, ")) - (", f1, "))/(", fr, ")"),
-            root = root,
-            method = "add"
-          )
+          d[[6]] <- do.call(rbind, mapply(function(mystate, mypar) {
+            data.frame(
+              var = paste0(mystate, ".", mypar),
+              time = tau,
+              value = paste0("(eventcounter__ + 1)*", mystate, ".", tau , "/(", fr, ")"),
+              root = root,
+              method = "replace"
+            )
+          }, 
+          mystate = sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][1]),
+          mypar =  sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][2]),
+          SIMPLIFY = FALSE))
+          d[[6]] <- d[[6]][order(d[[6]][["method"]], decreasing = TRUE), ]
+        }
+   
+        excludedPars <- NULL
+        if (!is.na(root)) excludedPars <- c(rootpar, tau, xi)
+        vars <- outer(c(xone, xk), setdiff(odepars, excludedPars), function(x, y) paste(x, y, sep = "."))
+        vars <- intersect(vars, newvariables)
+        # sort first non-root states then root state
+        vars <- c(vars[!grepl(paste0("^", rootstate, "\\."), vars)], vars[grepl(paste0("^", rootstate, "\\."), vars)])
+        if (length(vars) > 0 & !is.na(root)) {
+          d[[7]] <- do.call(rbind, mapply(function(mystate, mypar) {
+            data.frame(
+              var = paste0(mystate, ".", mypar),
+              time = tau,
+              value = paste0(mystate, ".", tau, "*(-", rootstate, ".", mypar, ")/(", fr, ")"), 
+              root = root,
+              method = ifelse(mystate == xone, "replace", "add")
+            )
+          }, 
+          mystate = sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][1]),
+          mypar =  sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][2]),
+          SIMPLIFY = FALSE))
+          #d[[7]] <- d[[7]][order(d[[7]][["method"]], decreasing = TRUE), ]
         }
         
-        vars <- intersect(paste0(xk, ".", rootpar), newvariables)
-        if (length(vars) > 0) {
-          d[[3]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = paste0("((", Jk1, ")*(", xone, "- (", xi, ")))/(", fr, ")"),
-            root = root,
-            method = "add"
-          )
-        }
         
         d[["stringsAsFactors"]] <- FALSE
         
@@ -250,28 +284,6 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           )
         }
         
-        vars <- intersect(paste0(xone, ".", rootpar), newvariables)
-        if (length(vars) > 0) {
-          d[[2]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = paste0("(-(", J11, ") * (", xi, "))/(", fr, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xk, ".", rootpar), newvariables)
-        if (length(vars) > 0) {
-          d[[3]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = paste0("(-(", Jk1, ") * (", xi, "))/(", fr, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
         
         d[["stringsAsFactors"]] <- FALSE
         
@@ -325,28 +337,6 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
             var = vars,
             time = tau,
             value = xone,
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xone, ".", rootpar), newvariables)
-        if (length(vars) > 0) {
-          d[[2]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = paste0("((1 - (", xi, "))*((", J11, ")*(", xone, ") - (", f1, ")))/(", fr, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xk, ".", rootpar), newvariables)
-        if (length(vars) > 0) {
-          d[[3]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = paste0("((1 - (", xi, "))*((", Jk1, ")*(", xone, ")))/(", fr, ")"),
             root = root,
             method = "add"
           )
@@ -411,6 +401,13 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       if (all(is.na(eventframe[["root"]]))) {
         e <- e[-match("root", names(e))]
       }
+      return(e)
+    })
+    
+    # No factors in events
+    events <- lapply(events, function(e) {
+      e <- lapply(e, as.character)
+      e <- as.data.frame(e, stringsAsFactors = FALSE)
       return(e)
     })
     

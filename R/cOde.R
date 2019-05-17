@@ -198,6 +198,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
         t <- time.unique[i]
         paste0("\t if(*t == ", t, " & eventcounter[", i-1, "] == 0) {\n",
                paste(sapply(which(time == t), function(tix) {
+                 value[tix] <- gsub("eventcounter__", paste0("eventcounter[", i-1, "]"), value[tix])
                  switch(
                    method[tix],
                    replace = paste0("\t\t", var[tix], " = ", value[tix], ";"),
@@ -206,7 +207,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
                  )
                }), collapse = "\n"),
                "\n",
-               "\t\t", "eventcounter[", i-1, "] = 1.;\n",
+               "\t\t", "eventcounter[", i-1, "] = eventcounter[", i-1, "] + 1.;\n",
                "\t }\n"
         )
       })
@@ -220,11 +221,11 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
                   as.character(events[["root"]])), 
         MARGIN = 1,
         FUN = function(x) {
-          if (!is.na(x[2])) {
-            out <- x[2]
-          }
           if (!is.na(x[1])) {
             out <- paste0("time - ", x[1])
+          }
+          if (!is.na(x[2])) {
+            out <- x[2]
           }
           if (all(is.na(x))) {
             stop("Either time or root must be provided with events data frame")
@@ -234,6 +235,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
       )
       names(roots) <- paste0("constr", seq_along(roots))
       rootfunc <- deSolveSyntax(roots)
+      rootfunc <- unique(rootfunc)
       dr <- length(rootfunc)
       # Generate conditions for eventfun
       var <- deSolveSyntax(as.character(events[["var"]]))
@@ -242,11 +244,11 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
                   as.character(events[["root"]])), 
         MARGIN = 1,
         FUN = function(x) {
-          if (!is.na(x[2])) {
-            out <- paste0("fabs(", x[2], ") < 1e-6")
-          }
           if (!is.na(x[1])) {
             out <- paste0("(time - ", x[1], ") == 0 & eventcounter[(idx)] == 0")
+          }
+          if (!is.na(x[2])) {
+            out <- paste0("fabs(", x[2], ") < 1e-6")
           }
           if (all(is.na(x))) {
             stop("Either time or root must be provided with events data frame")
@@ -261,8 +263,9 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
       # Generate eventfun
       eventsfn <- sapply(1:length(condition.unique), function(i) {
         t <- condition.unique[i]
-        paste0("\t if(", gsub("(idx)", i-1, t, fixed = TRUE), ") {\n",
+        paste0("\t if(", gsub("(idx)", i-1, t, fixed = TRUE), " & eventcounter[", i-1, "] == 0) {\n",
                paste(sapply(which(condition == t), function(tix) {
+                 value[tix] <- gsub("eventcounter__", paste0("eventcounter[", i-1, "]"), value[tix])
                  switch(
                    method[tix],
                    replace = paste0("\t\t", var[tix], " = ", value[tix], ";"),
@@ -271,7 +274,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
                  )
                }), collapse = "\n"),
                "\n",
-               "\t\t", "eventcounter[", i-1, "] = 1.;\n",
+               "\t\t", "eventcounter[", i-1, "] = eventcounter[", i-1, "] + 1.;\n",
                "\t }\n"
         )
       })
