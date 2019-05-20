@@ -703,7 +703,7 @@ odeC <- function(y, times, func, parms, ...) {
     
     if (triggerByRoot) {
       eventlist <- list(func = eventfunc, root = TRUE)
-      triggertimes <- unlist(lapply(eventtime, function(mytime) seq(mytime - .1, mytime + .1, .01)))
+      triggertimes <- unlist(lapply(eventtime, function(mytime) seq(mytime - 1e-5, mytime + 1e-5, 1e-6)))
     } else {
       eventlist <- list(func = eventfunc, time = sort(unique(eventtime)))
       triggertimes <- NULL
