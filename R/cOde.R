@@ -703,8 +703,10 @@ odeC <- function(y, times, func, parms, ...) {
     
     if (triggerByRoot) {
       eventlist <- list(func = eventfunc, root = TRUE)
+      triggertimes <- unlist(lapply(eventtime, function(mytime) seq(mytime - .1, mytime + .1, .01)))
     } else {
       eventlist <- list(func = eventfunc, time = sort(unique(eventtime)))
+      triggertimes <- NULL
     }
     
   }
@@ -719,7 +721,7 @@ odeC <- function(y, times, func, parms, ...) {
       seq(min(times.inner), max(times.inner), len=nGridpoints)
     )
   if (!is.null(events))
-    times.inner <- union(times.inner, eventtime)
+   times.inner <- union(times.inner, triggertimes)
   
   times.inner <- sort(unique(times.inner))
   which.times <- match(times.outer, times.inner)

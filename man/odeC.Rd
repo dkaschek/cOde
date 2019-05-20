@@ -158,7 +158,7 @@ f <- c(
 # Define parametric events
 events.pars <- data.frame(
   var = c("u_degrade", "u_degrade", "u_build", "O3"),
-  time = c("t_on", "t_off", "2", NA),
+  time = c("t_on", "t_off", "2", "t_thres_O3"),
   value = c("plus", "minus", "2", "0"),
   root = c(NA, NA, NA, "O3 - thres_O3"),
   method = "replace"
@@ -173,12 +173,13 @@ yini <- c(O3 = 0, O2 = 3, O = 2, u_build = 1, u_degrade = 1)
 times <- seq(0, 8, by = .01)
 pars <- c(build_O3 = 1/6, decay_O3 = 1, 
           t_on = exp(rnorm(1, 0)), t_off = 6, plus = 3, minus = 1, 
-          thres_O3 = 0.5)
+          thres_O3 = 0.5, t_thres_O3 = 1)
 
 # Solve ODE with additional fixed-value events
-out <- odeC(y = yini, times = times, func = func, parms = pars)
+out <- odeC(y = yini, times = times, func = func, parms = pars, method = "lsode")
 
-
+class(out) <- c("deSolve")
+plot(out)
 # Plot solution
 
 par(mfcol=c(1,2))
