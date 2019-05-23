@@ -391,7 +391,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     is_neutral <- (eventframe$method == "add" & values.vals == 0)
     
     # Reduce eventframe
-    eventframe <- eventframe[!is_neutral,]
+    # eventframe <- eventframe[!is_neutral,]
     
     # Reduce events (by name matching)
     events <- lapply(events, function(e) e[rownames(e) %in% rownames(eventframe), ])
