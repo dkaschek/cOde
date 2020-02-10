@@ -4,8 +4,16 @@
 \alias{bvptwpC}
 \title{Interface to bvptwp()}
 \usage{
-bvptwpC(yini = NULL, x, func, yend = NULL, parms, xguess = NULL,
-  yguess = NULL, ...)
+bvptwpC(
+  yini = NULL,
+  x,
+  func,
+  yend = NULL,
+  parms,
+  xguess = NULL,
+  yguess = NULL,
+  ...
+)
 }
 \arguments{
 \item{yini}{named vector of type numeric. Initial values to be overwritten.}

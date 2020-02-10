@@ -4,8 +4,14 @@
 \alias{sensitivitiesSymb}
 \title{Compute sensitivity equations of a function symbolically}
 \usage{
-sensitivitiesSymb(f, states = names(f), parameters = NULL,
-  inputs = NULL, events = NULL, reduce = FALSE)
+sensitivitiesSymb(
+  f,
+  states = names(f),
+  parameters = NULL,
+  inputs = NULL,
+  events = NULL,
+  reduce = FALSE
+)
 }
 \arguments{
 \item{f}{named vector of type character, the functions}
