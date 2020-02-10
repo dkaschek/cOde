@@ -84,6 +84,11 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
                  nGridpoints = -1, includeTimeZero = TRUE, precision = 1e-5, modelname = NULL,
                  verbose = FALSE, solver = c("deSolve", "Sundials")) {
   
+  if (!is.null(events[["root"]]) & !is.null(rootfunc))
+    stop("Root functions cannot be used in both events and rootfunc argument.")
+  
+  
+  
   f <- unclass(f)
   
   # If f contains line breaks, replace them by ""
@@ -117,7 +122,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
      
   ## Analyze f by parser
   variables <- names(f)
-  symbols <- getSymbols(c(f, rootfunc, constraints, as.character(events[["value"]]), as.character(events[["time"]])))
+  symbols <- getSymbols(c(f, rootfunc, constraints, as.character(events[["value"]]), as.character(events[["time"]]), as.character(events[["root"]])))
   parameters <- symbols[!symbols%in%c(variables, forcings, names(constraints), names(rootfunc), "time")]
 
 
@@ -154,10 +159,11 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
     f <- gsub("--", "+", f, fixed = TRUE)
     f <- replaceOperation("^", "pow", f)
     f <- replaceOperation("**", "pow", f)
-    f <- replaceSymbols(variables, paste0("y[", 1:length(variables) - 1, "]"), f)
-    f <- replaceSymbols(names(constraints), paste0("cons[", 1:dc - 1, "]"), f)
+    f <- replaceSymbols(variables, paste0("y[", format(1:length(variables) - 1, trim = TRUE, scientific = FALSE), "]"), f)
+    f <- replaceSymbols(names(constraints), paste0("cons[", format(1:dc - 1, trim = TRUE, scientific = FALSE), "]"), f)
     f <- replaceSymbols(forcings, forc.replace, f)
     f <- replaceSymbols(forcings.t, forc.t.replace, f)
+    f <- gsub("&", " & ", f, fixed = TRUE)
     return(f)
   }
     
@@ -175,28 +181,107 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   if(!is.null(rootfunc))
     rootfunc <- deSolveSyntax(rootfunc)
   
+  
+  triggerByRoot <- FALSE
   if(!is.null(events)) {
-    var <- deSolveSyntax(as.character(events[["var"]]))
-    time <- deSolveSyntax(as.character(events[["time"]]))
-    value <- deSolveSyntax(as.character(events[["value"]]))
-    method <- as.character(events[["method"]])
-    time.unique <- unique(time)
-    eventsfn <- sapply(1:length(time.unique), function(i) {
-      t <- time.unique[i]
-      paste0("\t if(*t == ", t, " & eventcounter[", i-1, "] == 0) {\n",
-             paste(sapply(which(time == t), function(tix) {
-               switch(
-                 method[tix],
-                 replace = paste0("\t\t", var[tix], " = ", value[tix], ";"),
-                 add = paste0("\t\t", var[tix], " = ", var[tix], " + ", value[tix], ";"),
-                 multiply = paste0("\t\t", var[tix], " = (", var[tix], ") * (", value[tix], ");")
-               )
-             }), collapse = "\n"),
-             "\n",
-             "\t\t", "eventcounter[", i-1, "] = 1.;\n",
-             "\t }\n"
+    
+    # Check events if only standard events (no root)
+    if (is.null(events[["root"]]) || all(is.na(events[["root"]]))) {
+      
+      triggerByRoot <- FALSE
+      var <- deSolveSyntax(as.character(events[["var"]]))
+      time <- deSolveSyntax(as.character(events[["time"]]))
+      value <- deSolveSyntax(as.character(events[["value"]]))
+      method <- as.character(events[["method"]])
+      time.unique <- unique(time)
+      eventsfn <- sapply(1:length(time.unique), function(i) {
+        t <- time.unique[i]
+        paste0("\t if(*t == ", t, " & eventcounter[", i-1, "] == 0) {\n",
+               paste(sapply(which(time == t), function(tix) {
+                 value[tix] <- gsub("eventcounter__", paste0("eventcounter[", i-1, "]"), value[tix])
+                 switch(
+                   method[tix],
+                   replace = paste0("\t\t", var[tix], " = ", value[tix], ";"),
+                   add = paste0("\t\t", var[tix], " = ", var[tix], " + ", value[tix], ";"),
+                   multiply = paste0("\t\t", var[tix], " = (", var[tix], ") * (", value[tix], ");")
+                 )
+               }), collapse = "\n"),
+               "\n",
+               "\t\t", "eventcounter[", i-1, "] = eventcounter[", i-1, "] + 1.;\n",
+               "\t }\n"
+        )
+      })
+      
+    } else {
+      
+      triggerByRoot <- TRUE
+      # Generate rootfun
+      roots <- apply(
+        X = cbind(as.character(events[["time"]]),
+                  as.character(events[["root"]])), 
+        MARGIN = 1,
+        FUN = function(x) {
+          if (!is.na(x[1])) {
+            out <- paste0("time - ", x[1])
+          }
+          if (!is.na(x[2])) {
+            out <- x[2]
+          }
+          if (all(is.na(x))) {
+            stop("Either time or root must be provided with events data frame")
+          }
+          return(out)
+        }
       )
-    })
+      names(roots) <- paste0("constr", seq_along(roots))
+      rootfunc <- deSolveSyntax(roots)
+      rootfunc <- unique(rootfunc)
+      dr <- length(rootfunc)
+      # Generate conditions for eventfun
+      var <- deSolveSyntax(as.character(events[["var"]]))
+      condition <- apply(
+        X = cbind(as.character(events[["time"]]),
+                  as.character(events[["root"]])), 
+        MARGIN = 1,
+        FUN = function(x) {
+          if (!is.na(x[1])) {
+            out <- paste0("(time - ", x[1], ") == 0 & eventcounter[(idx)] == 0")
+          }
+          if (!is.na(x[2])) {
+            out <- paste0("fabs(", x[2], ") < 1e-6")
+          }
+          if (all(is.na(x))) {
+            stop("Either time or root must be provided with events data frame")
+          }
+          out <- deSolveSyntax(out)
+          return(out)
+        }
+      )
+      value <- deSolveSyntax(as.character(events[["value"]]))
+      method <- as.character(events[["method"]])
+      condition.unique <- unique(condition)
+      # Generate eventfun
+      eventsfn <- sapply(1:length(condition.unique), function(i) {
+        t <- condition.unique[i]
+        paste0("\t if(", gsub("(idx)", i-1, t, fixed = TRUE), " & eventcounter[", i-1, "] == 0) {\n",
+               paste(sapply(which(condition == t), function(tix) {
+                 value[tix] <- gsub("eventcounter__", paste0("eventcounter[", i-1, "]"), value[tix])
+                 switch(
+                   method[tix],
+                   replace = paste0("\t\t", var[tix], " = ", value[tix], ";"),
+                   add = paste0("\t\t", var[tix], " = ", var[tix], " + ", value[tix], ";"),
+                   multiply = paste0("\t\t", var[tix], " = (", var[tix], ") * (", value[tix], ");")
+                 )
+               }), collapse = "\n"),
+               "\n",
+               "\t\t", "eventcounter[", i-1, "] = eventcounter[", i-1, "] + 1.;\n",
+               "\t }\n"
+        )
+      })
+      
+    }
+    
+    
   }
   
   
@@ -377,7 +462,6 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
       cat("\t double xdot[nSplines];\n")
       cat(paste0("\t ", modelname, "_evaluateSplines(t, x, xdot);\n"))
     }
-    cat("\t double time = *t;\n")
     cat(paste("\t gout[", 0:(dr-1),"] = ", rootfunc,";\n", sep=""))
     cat("\n")
     cat("}\n")
@@ -452,6 +536,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   attr(f, "parameters") <- parameters
   attr(f, "forcings") <- forcings
   attr(f, "events") <- events
+  attr(f, "triggerByRoot") <- triggerByRoot
   attr(f, "outputs") <- outputs
   attr(f, "jacobian") <- jacobian
   attr(f, "inz") <- inz
@@ -598,6 +683,7 @@ odeC <- function(y, times, func, parms, ...) {
   nGridpoints <- attr(func, "nGridpoints")
   includeTimeZero <- attr(func, "includeTimeZero")
   modelname <- attr(func, "modelname")
+  triggerByRoot <- attr(func, "triggerByRoot")
   
   # Evaluate initial values and parameters
   y <- y[attr(func, "variables")]
@@ -613,12 +699,19 @@ odeC <- function(y, times, func, parms, ...) {
     time.expr <- parse(text = paste0("c(", paste(as.character(events[["time"]]), collapse = ", "), ")"))
     # evaluate event parameters and times
     eventtime <- with(as.list(parms), eval(time.expr))
-    eventlist <- list(func = eventfunc, time = sort(unique(eventtime)))
+    eventtime <- eventtime[!is.na(eventtime)]
+    
+    if (triggerByRoot) {
+      eventlist <- list(func = eventfunc, root = TRUE)
+      triggertimes <- unlist(lapply(eventtime, function(mytime) seq(mytime - 1e-5, mytime + 1e-5, 1e-6)))
+    } else {
+      eventlist <- list(func = eventfunc, time = sort(unique(eventtime)))
+      triggertimes <- NULL
+    }
     
   }
   
   
-  #times <- sort(union(times, eventlist[["time"]]))
   times.outer <- times.inner <- times
   if (includeTimeZero)
     times.inner <- union(times.inner, 0)
@@ -627,6 +720,8 @@ odeC <- function(y, times, func, parms, ...) {
       times.inner, 
       seq(min(times.inner), max(times.inner), len=nGridpoints)
     )
+  if (!is.null(events))
+   times.inner <- union(times.inner, triggertimes)
   
   times.inner <- sort(unique(times.inner))
   which.times <- match(times.outer, times.inner)
