@@ -397,12 +397,12 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     events <- lapply(events, function(e) e[rownames(e) %in% rownames(eventframe), ])
     
     # Check if any root-like events
-    events <- lapply(events, function(e){
-      if (all(is.na(eventframe[["root"]]))) {
-        e <- e[-match("root", names(e))]
-      }
-      return(e)
-    })
+    # events <- lapply(events, function(e){
+    #   if (all(is.na(eventframe[["root"]]))) {
+    #     e <- e[-match("root", names(e))]
+    #   }
+    #   return(e)
+    # })
     
     # No factors in events
     events <- lapply(events, function(e) {
