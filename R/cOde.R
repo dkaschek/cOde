@@ -592,12 +592,14 @@ compileAndLoad <- function(filename, dllname, fcontrol, verbose) {
 #' @details Splines are generated for each name in forcings and both, function value and first
 #' derivative are evaluated at the time points of the data frame.
 #' @examples
+#' \dontrun{
 #' f <- c(x = "-k*x + a - b")
 #' func <- funC(f, forcings = c("a", "b"))
 #' forcData <- rbind(
 #'   data.frame(name = "a", time = c(0, 1, 10), value = c(0, 5, 2)),
 #'   data.frame(name = "b", time = c(0, 5, 10), value = c(1, 3, 6)))
 #' forc <- setForcings(func, forcData) 
+#' }
 #' @export
 #' @importFrom stats splinefun
 setForcings <- function(func, forcings) {

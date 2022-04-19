@@ -371,8 +371,8 @@ sumSymb <- function(M, N) {
   }
   
   
-  if(class(M) == "matrix") dimM <- dim(M) else dimM <- c(length(M),1)
-  if(class(N) == "matrix") dimN <- dim(N) else dimN <- c(length(N),1)
+  if (inherits(M, "matrix")) dimM <- dim(M) else dimM <- c(length(M),1)
+  if (inherits(N, "matrix")) dimN <- dim(N) else dimN <- c(length(N),1)
   
   M <- as.character(M)
   N <- as.character(N)
