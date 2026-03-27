@@ -106,6 +106,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       tau <- as.character(myevent[["time"]])
       xi <- as.character(myevent[["value"]])
       root <- as.character(myevent[["root"]])
+      
       xk <- setdiff(variables, xone)
       rootstate <- intersect(getSymbols(root), variables)[1]
       norootstate <- setdiff(variables, rootstate)
@@ -119,12 +120,17 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       fk <- f[xk]
       fr <- f[rootstate]
       
+      
       # Collect ODE parameters 
       odepars <- c(states, pars)
       
       
       # Generate additional events for **replacement event**
       if (myevent[["method"]] == "replace") {
+        
+        
+        f1post <- replaceSymbols(xone, paste0("(", xi, ")"), f1)
+        fkpost <- replaceSymbols(xone, paste0("(", xi, ")"), fk)
         
         
         d <- list()
@@ -158,7 +164,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           d[[3]] <- data.frame(
             var = vars,
             time = tau,
-            value = paste0("(", J11, ")*(", xone, "- (", xi, ")) - (", f1, ")"),
+            #value = paste0("(", J11, ")*(", xone, "- (", xi, ")) - (", f1, ")"),
+            value = paste0("-(", f1post, ")"),
             root = root,
             method = "add"
           )
@@ -169,7 +176,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           d[[4]] <- data.frame(
             var = vars,
             time = tau,
-            value = paste0("(", Jk1, ")*(", xone, "- (", xi, "))"),
+            # value = paste0("(", Jk1, ")*(", xone, "- (", xi, "))"),
+            value = paste0(fk, "- (", fkpost, ")"),
             root = root,
             method = "add"
           )
@@ -238,6 +246,10 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       # Generate additional events for **additive event**
       else if (myevent[["method"]] == "add") {
         
+        f1post <- replaceSymbols(xone, paste0("(", xone, " + ", xi, ")"), f1)
+        fkpost <- replaceSymbols(xone, paste0("(", xone, " + ", xi, ")"), fk)
+        
+        
         d <- list()
         
         vars <- intersect(paste0(xone, ".", odepars), newvariables)
@@ -256,7 +268,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           d[[2]] <- data.frame(
             var = vars,
             time = tau,
-            value = paste0("-(", J11, ") * (", xi, ")"),
+            #value = paste0("-(", J11, ") * (", xi, ")"),
+            value = paste0(f1, "- (", f1post, ")"),
             root = root,
             method = "add"
           )
@@ -267,7 +280,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           d[[3]] <- data.frame(
             var = vars,
             time = tau,
-            value = paste0("-(", Jk1, ") * (", xi, ")"),
+            #value = paste0("-(", Jk1, ") * (", xi, ")"),
+            value = paste0(fk, "- (", fkpost, ")"),
             root = root,
             method = "add"
           )
@@ -298,6 +312,12 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
         
         d <- list()
         
+        
+        
+        f1post <- replaceSymbols(xone, paste0("(", xone, " * (", xi, "))"), f1)
+        fkpost <- replaceSymbols(xone, paste0("(", xone, " * (", xi, "))"), fk)
+        
+        
         vars <- intersect(paste0(xone, ".", odepars), newvariables)
         if (length(vars) > 0) {
           d[[1]] <- data.frame(
@@ -314,7 +334,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           d[[2]] <- data.frame(
             var = vars,
             time = tau,
-            value = paste0("(1 - (", xi, "))*((", J11, ")*(", xone, ") - (", f1, "))"),
+            # value = paste0("(1 - (", xi, "))*((", J11, ")*(", xone, ") - (", f1, "))"),
+            value = paste0("(", xi, ") * (", f1, ") - (", f1post, ")"),
             root = root,
             method = "add"
           )
@@ -325,7 +346,8 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           d[[3]] <- data.frame(
             var = vars,
             time = tau,
-            value = paste0("(1 - (", xi, "))*((", Jk1, ")*(", xone, "))"),
+            # value = paste0("(1 - (", xi, "))*((", Jk1, ")*(", xone, "))"),
+            value = paste0("(", fk, ") - (", fkpost, ")"),
             root = root,
             method = "add"
           )
