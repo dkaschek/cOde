@@ -1,7 +1,7 @@
 Package: cOde
 Type: Package
 Title: Automated C Code Generation for 'deSolve', 'bvpSolve'
-Version: 1.1.1
+Version: 1.1.2
 NeedsCompilation: no
 Depends:
     R (>= 3.0)
@@ -9,7 +9,7 @@ Suggests:
     deSolve,
     bvpSolve,
     testthat
-Date: 2022-02-23
+Date: 2026-04-17
 Author: Daniel Kaschek
 Maintainer: Daniel Kaschek <daniel.kaschek@gmail.com>
 Description: Generates all necessary C functions allowing the user to work with
@@ -18,4 +18,5 @@ Description: Generates all necessary C functions allowing the user to work with
     Jacobians, sensitivity equations and adjoint sensitivities being the basis for
     sensitivity analysis.
 License: GPL (>= 2)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.3.3
+Encoding: UTF-8
