@@ -196,7 +196,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
       time.unique <- unique(time)
       eventsfn <- sapply(1:length(time.unique), function(i) {
         t <- time.unique[i]
-        paste0("\t if(*t == ", t, " & eventcounter[", i-1, "] == 0) {\n",
+        paste0("\t if(*t == ", t, " && eventcounter[", i-1, "] == 0) {\n",
                paste(sapply(which(time == t), function(tix) {
                  value[tix] <- gsub("eventcounter__", paste0("eventcounter[", i-1, "]"), value[tix])
                  switch(
@@ -263,7 +263,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
       # Generate eventfun
       eventsfn <- sapply(1:length(condition.unique), function(i) {
         t <- condition.unique[i]
-        paste0("\t if(", gsub("(idx)", i-1, t, fixed = TRUE), " & eventcounter[", i-1, "] == 0) {\n",
+        paste0("\t if(", gsub("(idx)", i-1, t, fixed = TRUE), " && eventcounter[", i-1, "] == 0) {\n",
                paste(sapply(which(condition == t), function(tix) {
                  value[tix] <- gsub("eventcounter__", paste0("eventcounter[", i-1, "]"), value[tix])
                  switch(
