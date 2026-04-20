@@ -30,13 +30,23 @@ ODEs.}
 
 \item{forcings}{Character vector with the names of the forcings}
 
-\item{events}{data.frame of events with columns "var" (character, the name of the state to be
-affected), "time" (numeric or character, time point), 
-"value" (numeric or character, value), "method" (character, either
-"replace" or "add"). See \link[deSolve]{events}. If "var" and "time" are
-characters, their values need to be speciefied in the parameter vector
-when calling \code{\link{odeC}}. An event function is generated and compiled
-with the ODE.}
+\item{events}{data.frame of events with columns \code{var}, \code{time},
+\code{value}, \code{method} and optional \code{root}. \code{var} is the
+name of the state to be affected; \code{value} is numeric or a symbolic
+expression; \code{method} is \code{"replace"}, \code{"add"} or
+\code{"multiply"}. Each row must set exactly one of \code{time} and
+\code{root} to \code{NA}: a timed event uses \code{root = NA} and a fixed
+or symbolic time; a root-triggered event uses \code{time = NA} and a
+non-empty \code{root} expression. See \link[deSolve]{events}. If
+\code{time} or \code{value} are given symbolically, the corresponding
+parameter must appear in the parameter vector passed to \code{\link{odeC}}.
+Events emitted by \code{\link{sensitivitiesSymb}} for saltation may carry
+an additional \code{use_pre_state} column (logical); when \code{TRUE},
+\code{funC} emits a \code{y_pre[]} snapshot at the top of the generated
+event function and rewrites that row's RHS to read from the snapshot, so
+pre-event values are used even when several resets fire together. Default
+(\code{FALSE} or column absent) preserves the original sequential
+semantics.}
 
 \item{fixed}{character vector with the names of parameters (initial values
 and dynamic) for which no sensitivities are required (will speed up the
