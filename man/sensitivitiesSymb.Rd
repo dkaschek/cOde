@@ -25,12 +25,17 @@ values of these parameters}
 \item{inputs}{Character vector. Input functions or forcings. They are excluded from
 the computation of sensitivities.}
 
-\item{events}{data.frame of events with columns "var" (character, the name of the state to be
-affected), "time" (numeric or character, time point), 
-"value" (numeric or character, value), "method" (character, either
-"replace" or "add"). See \link[deSolve]{events}.
-Within \code{sensitivitiesSymb()} a \code{data.frame} of additional events is generated to 
-reset the sensitivities appropriately, depending on the event method.}
+\item{events}{data.frame of events with columns \code{var} (character,
+the name of the state to be affected), \code{time} (numeric or character,
+event time), \code{value} (numeric or character, value used by the reset),
+\code{method} (\code{"replace"}, \code{"add"} or \code{"multiply"}) and
+optional \code{root} (character, a root expression r(x, t, p) = 0).
+Each row must set exactly one of \code{time} and \code{root} to \code{NA}:
+a timed event uses \code{root = NA} and a fixed or symbolic time; a
+root-triggered event uses \code{time = NA} and a non-empty \code{root}.
+See \link[deSolve]{events}. Within \code{sensitivitiesSymb()} additional
+events are generated to apply the saltation correction to the forward
+sensitivities at each event firing.}
 
 \item{reduce}{Logical. Attempts to determine vanishing sensitivities, removes their
 equations and replaces their right-hand side occurences by 0.}
@@ -47,11 +52,21 @@ Compute sensitivity equations of a function symbolically
 }
 \details{
 The sensitivity equations are ODEs that are derived from the original ODE f.
-They describe the sensitivity of the solution curve with respect to parameters like 
+They describe the sensitivity of the solution curve with respect to parameters like
 initial values and other parameters contained in f. These equtions are also useful
 for parameter estimation by the maximum-likelihood method. For consistency with the
 time-continuous setting provided by \link{adjointSymb}, the returned equations contain
 attributes for the chisquare functional and its gradient.
+At each event the saltation matrix correction
+\eqn{S_i^+ = \sum_j (\partial g_i/\partial x_j) S_{j,p} + \partial g_i/\partial p + \Delta_i \cdot d\tau/dp}
+with
+\eqn{\Delta_i = \sum_j (\partial g_i/\partial x_j) f_j^- - f_i^+}
+and, for root-triggered events,
+\eqn{d\tau/dp = -(\partial r/\partial p + \sum_k (\partial r/\partial x_k) S_{k,p}) /
+                (\partial r/\partial t + \sum_k (\partial r/\partial x_k) f_k^-)}
+is emitted as a reset event with \code{use_pre_state = TRUE} so that
+\code{\link{funC}} wires the saltation RHS to a pre-event snapshot of the
+state vector.
 }
 \examples{
 \dontrun{

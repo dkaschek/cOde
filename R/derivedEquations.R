@@ -8,20 +8,35 @@
 #' values of these parameters
 #' @param inputs Character vector. Input functions or forcings. They are excluded from
 #' the computation of sensitivities.
-#' @param events data.frame of events with columns "var" (character, the name of the state to be
-#' affected), "time" (numeric or character, time point), 
-#' "value" (numeric or character, value), "method" (character, either
-#' "replace" or "add"). See \link[deSolve]{events}.
-#' Within \code{sensitivitiesSymb()} a \code{data.frame} of additional events is generated to 
-#' reset the sensitivities appropriately, depending on the event method. 
+#' @param events data.frame of events with columns \code{var} (character,
+#' the name of the state to be affected), \code{time} (numeric or character,
+#' event time), \code{value} (numeric or character, value used by the reset),
+#' \code{method} (\code{"replace"}, \code{"add"} or \code{"multiply"}) and
+#' optional \code{root} (character, a root expression r(x, t, p) = 0).
+#' Each row must set exactly one of \code{time} and \code{root} to \code{NA}:
+#' a timed event uses \code{root = NA} and a fixed or symbolic time; a
+#' root-triggered event uses \code{time = NA} and a non-empty \code{root}.
+#' See \link[deSolve]{events}. Within \code{sensitivitiesSymb()} additional
+#' events are generated to apply the saltation correction to the forward
+#' sensitivities at each event firing.
 #' @param reduce Logical. Attempts to determine vanishing sensitivities, removes their
 #' equations and replaces their right-hand side occurences by 0.
 #' @details The sensitivity equations are ODEs that are derived from the original ODE f.
-#' They describe the sensitivity of the solution curve with respect to parameters like 
+#' They describe the sensitivity of the solution curve with respect to parameters like
 #' initial values and other parameters contained in f. These equtions are also useful
 #' for parameter estimation by the maximum-likelihood method. For consistency with the
 #' time-continuous setting provided by \link{adjointSymb}, the returned equations contain
 #' attributes for the chisquare functional and its gradient.
+#' At each event the saltation matrix correction
+#' \eqn{S_i^+ = \sum_j (\partial g_i/\partial x_j) S_{j,p} + \partial g_i/\partial p + \Delta_i \cdot d\tau/dp}
+#' with
+#' \eqn{\Delta_i = \sum_j (\partial g_i/\partial x_j) f_j^- - f_i^+}
+#' and, for root-triggered events,
+#' \eqn{d\tau/dp = -(\partial r/\partial p + \sum_k (\partial r/\partial x_k) S_{k,p}) /
+#'                 (\partial r/\partial t + \sum_k (\partial r/\partial x_k) f_k^-)}
+#' is emitted as a reset event with \code{use_pre_state = TRUE} so that
+#' \code{\link{funC}} wires the saltation RHS to a pre-event snapshot of the
+#' state vector.
 #' @return Named vector of type character with the sensitivity equations. Furthermore,
 #' attributes "chi" (the integrand of the chisquare functional), "grad" (the integrand
 #' of the gradient of the chisquare functional), "forcings" (Character vector of the 
@@ -39,10 +54,11 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   states <- states[!states%in%inputs]
   
   if (is.null(parameters)) {
-    pars <- getSymbols(c(f,
-                         as.character(events[["value"]]),
-                         as.character(events[["time"]]),
-                         as.character(events[["root"]])),
+    event_chars <- c(as.character(events[["value"]]),
+                     as.character(events[["time"]]),
+                     as.character(events[["root"]]))
+    event_chars <- event_chars[!is.na(event_chars) & nzchar(event_chars)]
+    pars <- getSymbols(c(f, event_chars),
                        exclude = c(variables, inputs, "time"))
   } else {
     pars <- parameters[!parameters%in%inputs]
@@ -93,347 +109,248 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
   
   events.addon <- eventframe <- NULL
   if (!is.null(events)) {
-    
-    if (is.null(events[["root"]])) events[["root"]] <- NA
-    
-    events.addon <- lapply(1:nrow(events), function(i) {
-      
-      # A data frame representing the i'th event
-      myevent <- events[i,]
-      
-      # Get the info from the event
-      xone <- as.character(myevent[["var"]])
-      tau <- as.character(myevent[["time"]])
-      xi <- as.character(myevent[["value"]])
-      root <- as.character(myevent[["root"]])
-      
+
+    if (is.null(events[["root"]])) events[["root"]] <- NA_character_
+
+    # -- Saltation via direct chain-rule --
+    #
+    # For an event at time τ with reset x_i -> g_i(x, p):
+    #
+    #   S_{i,p}^+ = Σ_j (∂g_i/∂x_j) · S_{j,p}^-
+    #             + ∂g_i/∂p
+    #             + Δ_i · dτ/dp
+    #
+    #   Δ_i  = Σ_j (∂g_i/∂x_j) · f_j^-  -  f_i^+
+    #
+    # Root-triggered (root r(x,t,p) = 0, `time` may be NA):
+    #   dτ/dp = -(∂r/∂p + Σ_k (∂r/∂x_k) · S_{k,p}^-) / (∂r/∂t + Σ_k (∂r/∂x_k) · f_k^-)
+    #
+    # Time-triggered (root NA, `time` = τ(p)):
+    #   dτ/dp = ∂(τ-expr)/∂p
+    #
+    # All RHS references S_{j,p}^- and x_j^- are pre-event values — funC emits
+    # a y_pre[] snapshot once at the top of myevent, and events emitted here
+    # carry use_pre_state = TRUE so their value expressions are rewritten to
+    # read from y_pre[].
+
+    is_zero <- function(x) {
+      is.null(x) || length(x) == 0L || any(is.na(x)) || !nzchar(x) || identical(x, "0")
+    }
+    # Whitespace-insensitive string equality. replaceSymbols() re-parses its
+    # input and strips whitespace, so f_pre and f_post can differ only by
+    # spaces even when semantically identical.
+    same_expr <- function(a, b) {
+      identical(gsub(" ", "", a, fixed = TRUE),
+                gsub(" ", "", b, fixed = TRUE))
+    }
+    sum_terms <- function(terms) {
+      terms <- terms[!vapply(terms, is_zero, logical(1))]
+      if (length(terms) == 0L) return("0")
+      paste(terms, collapse = " + ")
+    }
+    prod_term <- function(a, b) {
+      if (is_zero(a) || is_zero(b)) return("0")
+      if (identical(a, "1")) return(b)
+      if (identical(b, "1")) return(a)
+      paste0("(", a, ") * (", b, ")")
+    }
+    deriv1 <- function(expr, sym) {
+      if (is_zero(expr) || is.null(sym) || is.na(sym) || !nzchar(sym)) return("0")
+      e <- try(parse(text = expr), silent = TRUE)
+      if (inherits(e, "try-error")) return("0")
+      d <- try(stats::D(e[[1]], sym), silent = TRUE)
+      if (inherits(d, "try-error")) return("0")
+      gsub(" ", "", paste(deparse(d), collapse = ""), fixed = TRUE)
+    }
+
+    # Sensitivity parameters: state-initial-values first, then true parameters.
+    # Expressions (xi, r, tau_expr) do not depend on state-initial-value
+    # parameters symbolically — their contribution enters only through
+    # Σ_k (∂r/∂x_k) · S_{k, p_init} in dτ/dp.
+    sens_pars <- c(states, pars)
+    is_init <- setNames(sens_pars %in% states, sens_pars)
+
+    events.addon <- lapply(seq_len(nrow(events)), function(i) {
+
+      myevent  <- events[i, ]
+      xone     <- as.character(myevent[["var"]])
+      tau_expr <- as.character(myevent[["time"]])
+      xi       <- as.character(myevent[["value"]])
+      root     <- as.character(myevent[["root"]])
+      method   <- as.character(myevent[["method"]])
+
+      if (!method %in% c("replace", "add", "multiply"))
+        stop("Event method must be 'replace', 'add' or 'multiply'. Got: ", method)
+      time_na <- is.na(tau_expr) || !nzchar(tau_expr)
+      root_na <- is.na(root)     || !nzchar(root)
+      if (time_na && root_na)
+        stop("Event row ", i, ": exactly one of 'time' and 'root' must be set; both are NA.")
+      if (!time_na && !root_na)
+        stop("Event row ", i, ": exactly one of 'time' and 'root' must be set; both are given (", tau_expr, " / ", root, ").")
+
       xk <- setdiff(variables, xone)
-      rootstate <- intersect(getSymbols(root), variables)[1]
-      norootstate <- setdiff(variables, rootstate)
-      rootpar <- intersect(getSymbols(root), pars)[1]
-      
-      # Derive some quantities needed for all event methods
-      Ji1 <- jacobianSymb(f, variables = xone)
-      J11 <- Ji1[paste0(xone, ".", xone)]
-      Jk1 <- Ji1[paste0(xk, ".", xone)]
-      f1 <- f[xone]
-      fk <- f[xk]
-      fr <- f[rootstate]
-      
-      
-      # Collect ODE parameters 
-      odepars <- c(states, pars)
-      
-      
-      # Generate additional events for **replacement event**
-      if (myevent[["method"]] == "replace") {
-        
-        
-        f1post <- replaceSymbols(xone, paste0("(", xi, ")"), f1)
-        fkpost <- replaceSymbols(xone, paste0("(", xi, ")"), fk)
-        
-        
-        d <- list()
-        
-        vars <- intersect(paste0(xone, ".", odepars), newvariables)
-        if (length(vars) > 0 & is.na(root)) {
-          d[[1]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = 0,
-            root = root,
-            method = "replace"
-          )
+
+      # Pre- and post-event ODE right-hand side.
+      f_pre  <- f
+      xone_post <- switch(
+        method,
+        replace  = paste0("(", xi, ")"),
+        add      = paste0("(", xone, " + (", xi, "))"),
+        multiply = paste0("(", xone, " * (", xi, "))")
+      )
+      f_post <- replaceSymbols(xone, xone_post, f)
+      names(f_post) <- names(f)
+
+      # ∂xi/∂x_j  and  ∂xi/∂p
+      dxi_dx <- setNames(vapply(variables, function(j) deriv1(xi, j), character(1)),
+                         variables)
+      dxi_dp <- setNames(vapply(sens_pars, function(p) {
+        if (is_init[[p]]) "0" else deriv1(xi, p)
+      }, character(1)), sens_pars)
+
+      # Reset-map jacobians for the reset state xone (non-reset states have
+      # g_k = x_k, so ∂g_k/∂x_j = δ_kj and ∂g_k/∂p = 0 — handled below).
+      dg_dx <- switch(
+        method,
+        replace  = dxi_dx,
+        add      = {
+          out <- dxi_dx
+          out[[xone]] <- sum_terms(c("1", dxi_dx[[xone]]))
+          out
+        },
+        multiply = {
+          out <- setNames(character(length(variables)), variables)
+          for (j in variables) {
+            if (j == xone) {
+              out[[j]] <- sum_terms(c(xi, prod_term(xone, dxi_dx[[xone]])))
+            } else {
+              out[[j]] <- prod_term(xone, dxi_dx[[j]])
+            }
+          }
+          out
         }
-        
-        # Resetting of tau sensitivities for multiple roots
-        vars <- intersect(paste0(c(xone, xk), ".", tau), newvariables)
-        if (length(vars) > 0 & !is.na(root)) {
-          d[[2]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = 0,
-            root = root,
-            method = "replace"
-          )
-        }
-        
-        
-        vars <- intersect(paste0(xone, ".", tau), newvariables)
-        if (length(vars) > 0) {
-          d[[3]] <- data.frame(
-            var = vars,
-            time = tau,
-            #value = paste0("(", J11, ")*(", xone, "- (", xi, ")) - (", f1, ")"),
-            value = paste0("-(", f1post, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-          
-        vars <- intersect(paste0(xk, ".", tau), newvariables)
-        if (length(vars) > 0) {
-          d[[4]] <- data.frame(
-            var = vars,
-            time = tau,
-            # value = paste0("(", Jk1, ")*(", xone, "- (", xi, "))"),
-            value = paste0(fk, "- (", fkpost, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xone, ".", xi), newvariables)
-        if (length(vars) > 0) {
-          d[[5]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = 1,
-            root = root,
-            method = "add"
-          )
-        }
-        
-        
-        vars <- intersect(paste0(c(xone, xk), ".", rootpar), newvariables)
-        if (length(vars) > 0) {
-          d[[6]] <- do.call(rbind, mapply(function(mystate, mypar) {
-            data.frame(
-              var = paste0(mystate, ".", mypar),
-              time = tau,
-              value = paste0("(eventcounter__ + 1)*", mystate, ".", tau , "/(", fr, ")"),
-              root = root,
-              method = "replace"
-            )
-          }, 
-          mystate = sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][1]),
-          mypar =  sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][2]),
-          SIMPLIFY = FALSE))
-          d[[6]] <- d[[6]][order(d[[6]][["method"]], decreasing = TRUE), ]
-        }
-   
-        excludedPars <- NULL
-        if (!is.na(root)) excludedPars <- c(rootpar, tau, xi)
-        vars <- outer(c(xone, xk), setdiff(odepars, excludedPars), function(x, y) paste(x, y, sep = "."))
-        vars <- intersect(vars, newvariables)
-        # sort first non-root states then root state
-        vars <- c(vars[!grepl(paste0("^", rootstate, "\\."), vars)], vars[grepl(paste0("^", rootstate, "\\."), vars)])
-        if (length(vars) > 0 & !is.na(root)) {
-          d[[7]] <- do.call(rbind, mapply(function(mystate, mypar) {
-            data.frame(
-              var = paste0(mystate, ".", mypar),
-              time = tau,
-              value = paste0(mystate, ".", tau, "*(-", rootstate, ".", mypar, ")/(", fr, ")"), 
-              root = root,
-              method = ifelse(mystate == xone, "replace", "add")
-            )
-          }, 
-          mystate = sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][1]),
-          mypar =  sapply(vars, function(v) strsplit(v, ".", fixed = TRUE)[[1]][2]),
-          SIMPLIFY = FALSE))
-          #d[[7]] <- d[[7]][order(d[[7]][["method"]], decreasing = TRUE), ]
-        }
-        
-        
-        d[["stringsAsFactors"]] <- FALSE
-        
-        return(do.call(rbind, d))
-        
-        
-        
+      )
+      dg_dp <- switch(
+        method,
+        replace  = dxi_dp,
+        add      = dxi_dp,
+        multiply = setNames(vapply(sens_pars, function(p) prod_term(xone, dxi_dp[[p]]),
+                                   character(1)), sens_pars)
+      )
+
+      # Δ_i = Σ_j (∂g_i/∂x_j) · f_j^-  -  f_i^+
+      salt <- setNames(character(length(variables)), variables)
+      salt[[xone]] <- sum_terms(c(
+        sum_terms(vapply(variables, function(j) prod_term(dg_dx[[j]], f_pre[[j]]),
+                         character(1))),
+        paste0("-(", f_post[[xone]], ")")
+      ))
+      for (i_ in xk) {
+        a <- f_pre[[i_]]; b <- f_post[[i_]]
+        salt[[i_]] <- if (same_expr(a, b)) "0" else sum_terms(c(a, paste0("-(", b, ")")))
       }
-      
-      # Generate additional events for **additive event**
-      else if (myevent[["method"]] == "add") {
-        
-        f1post <- replaceSymbols(xone, paste0("(", xone, " + ", xi, ")"), f1)
-        fkpost <- replaceSymbols(xone, paste0("(", xone, " + ", xi, ")"), fk)
-        
-        
-        d <- list()
-        
-        vars <- intersect(paste0(xone, ".", odepars), newvariables)
-        if (length(vars) > 0) {
-          d[[1]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = 0,
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xone, ".", tau), newvariables)
-        if (length(vars) > 0) {
-          d[[2]] <- data.frame(
-            var = vars,
-            time = tau,
-            #value = paste0("-(", J11, ") * (", xi, ")"),
-            value = paste0(f1, "- (", f1post, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xk, ".", tau), newvariables)
-        if (length(vars) > 0) {
-          d[[3]] <- data.frame(
-            var = vars,
-            time = tau,
-            #value = paste0("-(", Jk1, ") * (", xi, ")"),
-            value = paste0(fk, "- (", fkpost, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xone, ".", xi), newvariables)
-        if (length(vars) > 0) {
-          d[[4]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = 1,
-            root = root,
-            method = "add"
-          )
-        }
-        
-        
-        d[["stringsAsFactors"]] <- FALSE
-        
-        return(do.call(rbind, d))
-        
-        
-        
+
+      # dτ/dp
+      if (!is.na(root)) {
+        dr_dx <- setNames(vapply(variables, function(k) deriv1(root, k), character(1)),
+                          variables)
+        dr_dt <- deriv1(root, "time")
+        denom <- sum_terms(c(
+          dr_dt,
+          vapply(variables, function(k) prod_term(dr_dx[[k]], f_pre[[k]]), character(1))
+        ))
+        dtau_dp <- setNames(vapply(sens_pars, function(p) {
+          dr_dp <- if (is_init[[p]]) "0" else deriv1(root, p)
+          chain <- vapply(variables, function(k) {
+            sv <- paste0(k, ".", p)
+            if (!(sv %in% newvariables)) return("0")
+            prod_term(dr_dx[[k]], sv)
+          }, character(1))
+          numerator <- sum_terms(c(dr_dp, chain))
+          if (is_zero(numerator) || is_zero(denom)) return("0")
+          paste0("-(", numerator, ") / (", denom, ")")
+        }, character(1)), sens_pars)
+      } else {
+        dtau_dp <- setNames(vapply(sens_pars, function(p) {
+          if (is_init[[p]]) "0" else deriv1(tau_expr, p)
+        }, character(1)), sens_pars)
       }
-      
-      # generate additional events for **multiplicative event**
-      else if (myevent[["method"]] == "multiply") {
-        
-        d <- list()
-        
-        
-        
-        f1post <- replaceSymbols(xone, paste0("(", xone, " * (", xi, "))"), f1)
-        fkpost <- replaceSymbols(xone, paste0("(", xone, " * (", xi, "))"), fk)
-        
-        
-        vars <- intersect(paste0(xone, ".", odepars), newvariables)
-        if (length(vars) > 0) {
-          d[[1]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = xi,
-            root = root,
-            method = "multiply" 
+
+      # Emit one "replace" event per tracked (state i, parameter p). Records
+      # with value equivalent to the variable itself (no-op) are filtered out.
+      records <- list()
+      for (ii in variables) {
+        for (p in sens_pars) {
+          sensvar <- paste0(ii, ".", p)
+          if (!(sensvar %in% newvariables)) next
+
+          if (ii == xone) {
+            ja_terms <- vapply(variables, function(j) {
+              sv <- paste0(j, ".", p)
+              if (!(sv %in% newvariables)) return("0")
+              prod_term(dg_dx[[j]], sv)
+            }, character(1))
+            salt_term <- prod_term(salt[[xone]], dtau_dp[[p]])
+            value_expr <- sum_terms(c(ja_terms, dg_dp[[p]], salt_term))
+          } else {
+            salt_term <- prod_term(salt[[ii]], dtau_dp[[p]])
+            if (is_zero(salt_term)) next
+            value_expr <- sum_terms(c(sensvar, salt_term))
+          }
+
+          if (identical(value_expr, sensvar)) next  # no-op
+
+          records[[length(records) + 1L]] <- data.frame(
+            var           = sensvar,
+            time          = tau_expr,
+            value         = value_expr,
+            root          = root,
+            method        = "replace",
+            use_pre_state = TRUE,
+            stringsAsFactors = FALSE
           )
         }
-        
-        vars <- intersect(paste0(xone, ".", tau), newvariables)
-        if (length(vars) > 0) {
-          d[[2]] <- data.frame(
-            var = vars,
-            time = tau,
-            # value = paste0("(1 - (", xi, "))*((", J11, ")*(", xone, ") - (", f1, "))"),
-            value = paste0("(", xi, ") * (", f1, ") - (", f1post, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xk, ".", tau), newvariables)
-        if (length(vars) > 0) {
-          d[[3]] <- data.frame(
-            var = vars,
-            time = tau,
-            # value = paste0("(1 - (", xi, "))*((", Jk1, ")*(", xone, "))"),
-            value = paste0("(", fk, ") - (", fkpost, ")"),
-            root = root,
-            method = "add"
-          )
-        }
-        
-        vars <- intersect(paste0(xone, ".", xi), newvariables)
-        if (length(vars) > 0) {
-          d[[4]] <- data.frame(
-            var = vars,
-            time = tau,
-            value = xone,
-            root = root,
-            method = "add"
-          )
-        }
-        
-        d[["stringsAsFactors"]] <- FALSE
-        
-        
-        
-        return(do.call(rbind, d))
-        
-        
-        
       }
-      
-      else {
-        
-        stop("Event method must be either 'replace', 'add' or 'multiply'.")
-        
+
+      if (length(records) == 0L) {
+        return(data.frame(
+          var           = character(0),
+          time          = character(0),
+          value         = character(0),
+          root          = character(0),
+          method        = character(0),
+          use_pre_state = logical(0),
+          stringsAsFactors = FALSE
+        ))
       }
-      
+      do.call(rbind, records)
     })
-    
+
     # Overwrite events
     events <- events.addon
-    
+
     # Add rownames that allow to trace back records in eventframe to the list of events
     for (i in seq_along(events)) {
-      rownames(events[[i]]) <- paste(i, seq_along(events[[i]][[1]]), sep = "_")
+      if (nrow(events[[i]]) > 0L)
+        rownames(events[[i]]) <- paste(i, seq_len(nrow(events[[i]])), sep = "_")
     }
-    
-    # Make sure all columns are characters
+
+    # Make sure character columns stay character but preserve the logical
+    # use_pre_state flag (funC checks it with as.logical()).
     eventframe <- do.call(rbind, events)
-    for (i in seq_along(eventframe)) {
-      eventframe[[i]] <- as.character(eventframe[[i]])
+    if (!is.null(eventframe) && nrow(eventframe) > 0L) {
+      for (k in seq_along(eventframe)) {
+        col <- eventframe[[k]]
+        if (!is.logical(col)) eventframe[[k]] <- as.character(col)
+      }
     }
-    
-    
-    # Get (numeric) values in eventframe value column
-    symbols <- getSymbols(eventframe$value)
-    symbols.vals <- structure(stats::rnorm(length(symbols)), names = symbols)
-    values.char <- paste0("c(", paste(eventframe$value, collapse = ", "), ")")
-    values.vals <- with(as.list(symbols.vals), eval(parse(text = values.char)))
-    
-    # Get sensitivities which are initialized by 0 and do not change due to additional events
-    is_ini_zero <- sapply(strsplit(eventframe$var, ".", fixed = TRUE), function(x) x[1] != x[2])
-    var_reset_to_zero <- sapply(unique(eventframe$var[is_ini_zero]), function(myvar) {
-      all(values.vals[eventframe$var == myvar] == 0)
-    })
-    
-    # Determine records which can be removed from eventframe either because they are neutral or the variable can completely be removed
-    is_neutral <- (eventframe$method == "add" & values.vals == 0)
-    
-    # Reduce eventframe
-    # eventframe <- eventframe[!is_neutral,]
-    
-    # Reduce events (by name matching)
-    events <- lapply(events, function(e) e[rownames(e) %in% rownames(eventframe), ])
-    
-    # Check if any root-like events
-    # events <- lapply(events, function(e){
-    #   if (all(is.na(eventframe[["root"]]))) {
-    #     e <- e[-match("root", names(e))]
-    #   }
-    #   return(e)
-    # })
-    
-    # No factors in events
+
+    # Reduce events (by name matching with eventframe)
     events <- lapply(events, function(e) {
-      e <- lapply(e, as.character)
-      e <- as.data.frame(e, stringsAsFactors = FALSE)
-      return(e)
+      if (nrow(e) == 0L) return(e)
+      e[rownames(e) %in% rownames(eventframe), , drop = FALSE]
     })
-    
-    
+
   }
  
   

@@ -4,13 +4,23 @@
 #'   You may use the key word \code{time} in your equations for non-autonomous
 #'   ODEs.
 #' @param forcings Character vector with the names of the forcings
-#' @param events data.frame of events with columns "var" (character, the name of the state to be
-#' affected), "time" (numeric or character, time point), 
-#' "value" (numeric or character, value), "method" (character, either
-#' "replace" or "add"). See \link[deSolve]{events}. If "var" and "time" are
-#' characters, their values need to be speciefied in the parameter vector
-#' when calling \code{\link{odeC}}. An event function is generated and compiled
-#' with the ODE.
+#' @param events data.frame of events with columns \code{var}, \code{time},
+#' \code{value}, \code{method} and optional \code{root}. \code{var} is the
+#' name of the state to be affected; \code{value} is numeric or a symbolic
+#' expression; \code{method} is \code{"replace"}, \code{"add"} or
+#' \code{"multiply"}. Each row must set exactly one of \code{time} and
+#' \code{root} to \code{NA}: a timed event uses \code{root = NA} and a fixed
+#' or symbolic time; a root-triggered event uses \code{time = NA} and a
+#' non-empty \code{root} expression. See \link[deSolve]{events}. If
+#' \code{time} or \code{value} are given symbolically, the corresponding
+#' parameter must appear in the parameter vector passed to \code{\link{odeC}}.
+#' Events emitted by \code{\link{sensitivitiesSymb}} for saltation may carry
+#' an additional \code{use_pre_state} column (logical); when \code{TRUE},
+#' \code{funC} emits a \code{y_pre[]} snapshot at the top of the generated
+#' event function and rewrites that row's RHS to read from the snapshot, so
+#' pre-event values are used even when several resets fire together. Default
+#' (\code{FALSE} or column absent) preserves the original sequential
+#' semantics.
 #' @param fixed  character vector with the names of parameters (initial values
 #'   and dynamic) for which no sensitivities are required (will speed up the
 #'   integration).
@@ -183,16 +193,28 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   
   
   triggerByRoot <- FALSE
+  has_pre_state <- FALSE
   if(!is.null(events)) {
-    
+
+    # Optional use_pre_state column: when TRUE the RHS of a reset sees the state
+    # as it was at the instant the event fired (before any sibling assignment in
+    # the same if-block). Needed for saltation corrections emitted by
+    # sensitivitiesSymb(); see y_pre snapshot in myevent below.
+    use_pre <- events[["use_pre_state"]]
+    if (is.null(use_pre)) use_pre <- rep(FALSE, nrow(events))
+    use_pre <- as.logical(use_pre)
+    use_pre[is.na(use_pre)] <- FALSE
+    has_pre_state <- any(use_pre)
+
     # Check events if only standard events (no root)
     if (is.null(events[["root"]]) || all(is.na(events[["root"]]))) {
-      
+
       triggerByRoot <- FALSE
       var <- deSolveSyntax(as.character(events[["var"]]))
       time <- deSolveSyntax(as.character(events[["time"]]))
       value <- deSolveSyntax(as.character(events[["value"]]))
       method <- as.character(events[["method"]])
+      value[use_pre] <- gsub("y[", "y_pre[", value[use_pre], fixed = TRUE)
       time.unique <- unique(time)
       eventsfn <- sapply(1:length(time.unique), function(i) {
         t <- time.unique[i]
@@ -259,6 +281,7 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
       )
       value <- deSolveSyntax(as.character(events[["value"]]))
       method <- as.character(events[["method"]])
+      value[use_pre] <- gsub("y[", "y_pre[", value[use_pre], fixed = TRUE)
       condition.unique <- unique(condition)
       # Generate eventfun
       eventsfn <- sapply(1:length(condition.unique), function(i) {
@@ -437,17 +460,21 @@ funC <- function(f, forcings = NULL, events = NULL, fixed = NULL, outputs=NULL,
   }
   
   if (!is.null(events)) {
-    
+
     cat("/** Event function **/\n")
     cat(paste0("void ", modelname, "_myevent(int *n, double *t, double *y) {\n"))
     cat("\n")
     cat("\t double time = *t;\n")
+    if (has_pre_state) {
+      cat("\t double y_pre[", dv, "];\n", sep = "")
+      cat("\t { int _i; for(_i = 0; _i < ", dv, "; ++_i) y_pre[_i] = y[_i]; }\n", sep = "")
+    }
     cat("\n")
     cat(eventsfn, sep = "\n")
     cat("\n")
     cat("}\n")
-    
-    
+
+
   }
   
   if(!is.null(rootfunc)) {
@@ -780,14 +807,24 @@ odeC <- function(y, times, func, parms, ...) {
   
   out <- do.call(deSolve::ode, arglist)
   
+  # Preserve attributes and class (needed for deSolve::diagnostics etc.)
+  att <- attributes(out)
+  cls <- class(out)
+  
   if (nGridpoints == -1) {
     # Return only requested time points
     out <- out[match(times.outer, out[, 1]), , drop = FALSE]
   } else {
     # Return all time points between tmin and tmax (additional time points after
     # tmax might be introduced by the integrator)
-    out <- out[out[, 1] >= min(times.inner) & out[, 1] <= max(times.inner), ]  
+    out <- out[out[, 1] >= min(times.inner) & out[, 1] <= max(times.inner), , drop = FALSE]
   }
+  
+  # Restore attributes (istate, rstate, ...) and class
+  for (a in setdiff(names(att), c("dim", "dimnames"))) {
+    attr(out, a) <- att[[a]]
+  }
+  class(out) <- cls
   
   return(out)
   
