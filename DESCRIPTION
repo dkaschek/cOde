@@ -1,7 +1,7 @@
 Package: cOde
 Type: Package
 Title: Automated C Code Generation for 'deSolve', 'bvpSolve'
-Version: 1.1.2
+Version: 1.1.3
 NeedsCompilation: no
 Depends:
     R (>= 3.0)
@@ -9,7 +9,7 @@ Suggests:
     deSolve,
     bvpSolve,
     testthat
-Date: 2026-04-17
+Date: 2026-04-27
 Author: Daniel Kaschek
 Maintainer: Daniel Kaschek <daniel.kaschek@gmail.com>
 Description: Generates all necessary C functions allowing the user to work with
@@ -20,3 +20,6 @@ Description: Generates all necessary C functions allowing the user to work with
 License: GPL (>= 2)
 RoxygenNote: 7.3.3
 Encoding: UTF-8
+Imports: 
+    stats,
+    utils

@@ -168,7 +168,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
     # parameters symbolically — their contribution enters only through
     # Σ_k (∂r/∂x_k) · S_{k, p_init} in dτ/dp.
     sens_pars <- c(states, pars)
-    is_init <- setNames(sens_pars %in% states, sens_pars)
+    is_init <- stats::setNames(sens_pars %in% states, sens_pars)
 
     events.addon <- lapply(seq_len(nrow(events)), function(i) {
 
@@ -202,9 +202,9 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
       names(f_post) <- names(f)
 
       # ∂xi/∂x_j  and  ∂xi/∂p
-      dxi_dx <- setNames(vapply(variables, function(j) deriv1(xi, j), character(1)),
+      dxi_dx <- stats::setNames(vapply(variables, function(j) deriv1(xi, j), character(1)),
                          variables)
-      dxi_dp <- setNames(vapply(sens_pars, function(p) {
+      dxi_dp <- stats::setNames(vapply(sens_pars, function(p) {
         if (is_init[[p]]) "0" else deriv1(xi, p)
       }, character(1)), sens_pars)
 
@@ -219,7 +219,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           out
         },
         multiply = {
-          out <- setNames(character(length(variables)), variables)
+          out <- stats::setNames(character(length(variables)), variables)
           for (j in variables) {
             if (j == xone) {
               out[[j]] <- sum_terms(c(xi, prod_term(xone, dxi_dx[[xone]])))
@@ -234,12 +234,12 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
         method,
         replace  = dxi_dp,
         add      = dxi_dp,
-        multiply = setNames(vapply(sens_pars, function(p) prod_term(xone, dxi_dp[[p]]),
+        multiply = stats::setNames(vapply(sens_pars, function(p) prod_term(xone, dxi_dp[[p]]),
                                    character(1)), sens_pars)
       )
 
       # Δ_i = Σ_j (∂g_i/∂x_j) · f_j^-  -  f_i^+
-      salt <- setNames(character(length(variables)), variables)
+      salt <- stats::setNames(character(length(variables)), variables)
       salt[[xone]] <- sum_terms(c(
         sum_terms(vapply(variables, function(j) prod_term(dg_dx[[j]], f_pre[[j]]),
                          character(1))),
@@ -252,14 +252,14 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
 
       # dτ/dp
       if (!is.na(root)) {
-        dr_dx <- setNames(vapply(variables, function(k) deriv1(root, k), character(1)),
+        dr_dx <- stats::setNames(vapply(variables, function(k) deriv1(root, k), character(1)),
                           variables)
         dr_dt <- deriv1(root, "time")
         denom <- sum_terms(c(
           dr_dt,
           vapply(variables, function(k) prod_term(dr_dx[[k]], f_pre[[k]]), character(1))
         ))
-        dtau_dp <- setNames(vapply(sens_pars, function(p) {
+        dtau_dp <- stats::setNames(vapply(sens_pars, function(p) {
           dr_dp <- if (is_init[[p]]) "0" else deriv1(root, p)
           chain <- vapply(variables, function(k) {
             sv <- paste0(k, ".", p)
@@ -271,7 +271,7 @@ sensitivitiesSymb <- function(f, states = names(f), parameters = NULL, inputs = 
           paste0("-(", numerator, ") / (", denom, ")")
         }, character(1)), sens_pars)
       } else {
-        dtau_dp <- setNames(vapply(sens_pars, function(p) {
+        dtau_dp <- stats::setNames(vapply(sens_pars, function(p) {
           if (is_init[[p]]) "0" else deriv1(tau_expr, p)
         }, character(1)), sens_pars)
       }
